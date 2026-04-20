@@ -40,8 +40,7 @@ type Capture = {
 
 function CaptureCard({ capture }: { capture: Capture }) {
   return (
-    <div className="group relative break-inside-avoid mb-2 overflow-hidden rounded-md bg-muted/10 border border-border/40 transition-all shadow-sm cursor-pointer">
-
+    <div className="group relative overflow-hidden rounded-md bg-muted/10 border border-border/40 transition-all shadow-sm cursor-pointer">
       <img 
         src={capture.url} 
         alt={capture.name} 
@@ -55,7 +54,6 @@ function CaptureCard({ capture }: { capture: Capture }) {
     </div>
   )
 }
-
 
 function CaptureGallery({ refreshKey }: { refreshKey: number }) {
   const [captures, setCaptures] = useState<Capture[]>([])
@@ -87,18 +85,25 @@ function CaptureGallery({ refreshKey }: { refreshKey: number }) {
     </div>
   )
 
+  // Balanced column distribution
+  const columnCount = 3
+  const columns = Array.from({ length: columnCount }, () => [] as Capture[])
+  captures.forEach((cap, i) => {
+    columns[i % columnCount].push(cap)
+  })
+
   return (
     <div className="flex-1 p-2 overflow-y-auto no-scrollbar">
-      <div className="columns-2 sm:columns-3 gap-3">
-        {captures.map((cap) => (
-          <CaptureCard key={cap.id} capture={cap} />
+      <div className="flex gap-3 items-start">
+        {columns.map((col, i) => (
+          <div key={i} className="flex-1 flex flex-col gap-3">
+            {col.map((cap) => (
+              <CaptureCard key={cap.id} capture={cap} />
+            ))}
+          </div>
         ))}
       </div>
     </div>
-
-
-
-
   )
 }
 
