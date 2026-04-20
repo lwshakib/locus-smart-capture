@@ -1,7 +1,21 @@
 import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, protocol, net, desktopCapturer, screen } from 'electron'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
+
+// Register custom protocol as privileged before app is ready
+protocol.registerSchemesAsPrivileged([
+  { 
+    scheme: 'locus-cap', 
+    privileges: { 
+      secure: true, 
+      standard: true, 
+      supportFetchAPI: true, 
+      bypassCSP: true, 
+      stream: true 
+    } 
+  }
+])
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -108,15 +122,14 @@ app.whenReady().then(() => {
       const image = source.thumbnail.toPNG()
       fs.writeFileSync(filepath, image)
       
-      // Normalize path for protocol
-      const normalizedPath = filepath.split(path.sep).join('/');
-      
       return {
         id: filename,
         name: filename,
-        url: `locus-cap://${normalizedPath}`,
+        url: `locus-cap://capture/${filename}`,
         timestamp: Date.now()
       }
+
+
     } catch (err) {
       throw err
     }
@@ -129,12 +142,15 @@ app.whenReady().then(() => {
         .map(f => {
           const filepath = path.join(CAP_FOLDER, f)
           const stats = fs.statSync(filepath)
+          
           return {
             id: f,
             name: f,
-            url: `locus-cap://${filepath}`,
+            url: `locus-cap://capture/${f}`,
             timestamp: stats.mtimeMs
           }
+
+
         })
         .sort((a, b) => b.timestamp - a.timestamp)
       return files
@@ -144,12 +160,34 @@ app.whenReady().then(() => {
   })
 
   // Register custom protocol for local images
-  protocol.handle('locus-cap', (request) => {
-    const normalized = request.url.replace('locus-cap://', '')
-    // Handle Windows drive letter formatting: file:///C:/path
-    const fileUrl = normalized.startsWith('/') ? `file://${normalized}` : `file:///${normalized}`
-    return net.fetch(fileUrl)
+  protocol.handle('locus-cap', async (request) => {
+    try {
+      const url = new URL(request.url)
+      const filename = path.basename(decodeURIComponent(url.pathname))
+      const filepath = path.join(CAP_FOLDER, filename)
+      
+      const buffer = await fs.promises.readFile(filepath)
+      
+      // Determine content type based on extension
+      const ext = path.extname(filepath).toLowerCase()
+      let contentType = 'image/png'
+      if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg'
+      if (ext === '.gif') contentType = 'image/gif'
+      if (ext === '.webp') contentType = 'image/webp'
+
+      return new Response(buffer, {
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'no-cache'
+        }
+      })
+    } catch (err) {
+      console.error('Protocol error:', err)
+      return new Response('Not Found', { status: 404 })
+    }
   })
+
+
 
   Menu.setApplicationMenu(null)
   createWindow()

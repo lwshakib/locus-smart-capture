@@ -40,20 +40,22 @@ type Capture = {
 
 function CaptureCard({ capture }: { capture: Capture }) {
   return (
-    <div className="group relative aspect-video overflow-hidden rounded-xl bg-muted/30 border border-border/50 hover:border-indigo-500/50 transition-all shadow-sm hover:shadow-md cursor-pointer">
+    <div className="group relative break-inside-avoid mb-2 overflow-hidden rounded-md bg-muted/10 border border-border/40 transition-all shadow-sm cursor-pointer">
+
       <img 
         src={capture.url} 
         alt={capture.name} 
-        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" 
+        className="w-full h-auto object-cover" 
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-        <p className="text-[10px] text-white/80 font-medium truncate">
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+        <p className="text-[9px] text-white/80 font-medium truncate">
           {new Date(capture.timestamp).toLocaleString()}
         </p>
       </div>
     </div>
   )
 }
+
 
 function CaptureGallery({ refreshKey }: { refreshKey: number }) {
   const [captures, setCaptures] = useState<Capture[]>([])
@@ -86,13 +88,17 @@ function CaptureGallery({ refreshKey }: { refreshKey: number }) {
   )
 
   return (
-    <div className="flex-1 p-4 overflow-y-auto no-scrollbar">
-      <div className="grid grid-cols-2 gap-3">
+    <div className="flex-1 p-2 overflow-y-auto no-scrollbar">
+      <div className="columns-2 sm:columns-3 gap-3">
         {captures.map((cap) => (
           <CaptureCard key={cap.id} capture={cap} />
         ))}
       </div>
     </div>
+
+
+
+
   )
 }
 
