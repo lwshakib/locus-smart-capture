@@ -150,6 +150,10 @@ app.whenReady().then(() => {
       const image = source.thumbnail.toPNG()
       fs.writeFileSync(filepath, image)
       
+      // Notify the renderer to refresh the gallery
+      win?.webContents.send('hotkey-capture')
+
+      
       return {
         id: filename,
         name: filename,
@@ -199,8 +203,9 @@ app.whenReady().then(() => {
       }
       return { success: false, error: 'File not found' }
     } catch (err) {
-      return { success: false, error: err.message }
+      return { success: false, error: (err as any).message }
     }
+
   })
 
   ipcMain.handle('open-capture', async (_, filename: string) => {
@@ -209,8 +214,9 @@ app.whenReady().then(() => {
       await shell.openPath(filepath)
       return { success: true }
     } catch (err) {
-      return { success: false, error: err.message }
+      return { success: false, error: (err as any).message }
     }
+
   })
 
 
