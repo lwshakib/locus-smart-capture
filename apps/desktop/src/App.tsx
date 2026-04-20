@@ -9,25 +9,34 @@ import {
   MonitorDot,
   Crop,
   Image as ImageIcon,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react'
+import React from 'react'
 
 
-function NavItem({ 
-  icon: Icon, 
-  label, 
-  shortcut,
-  onClick 
-}: { 
-  icon: LucideIcon, 
-  label: string,
-  shortcut?: string,
-  onClick?: () => void
-}) {
+
+
+
+
+const NavItem = React.forwardRef<
+  HTMLButtonElement,
+  { 
+    icon: LucideIcon, 
+    label: string, 
+    shortcut?: string,
+    onClick?: () => void 
+  } & React.ButtonHTMLAttributes<HTMLButtonElement>
+>(({ icon: Icon, label, shortcut, onClick, className, ...props }, ref) => {
   return (
     <button 
+      ref={ref}
       onClick={onClick}
-      className="flex items-center justify-between w-full px-2 py-1.5 text-[11px] font-medium rounded hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-muted-foreground hover:text-foreground transition-all group"
+      className={cn(
+        "flex items-center justify-between w-full px-2 py-1.5 text-[11px] font-medium rounded hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-muted-foreground hover:text-foreground transition-all group",
+        className
+      )}
+      {...props}
     >
       <div className="flex items-center gap-2 truncate">
         <Icon className="w-4 h-4 text-slate-400 group-hover:text-foreground transition-colors" />
@@ -40,7 +49,9 @@ function NavItem({
       )}
     </button>
   )
-}
+})
+NavItem.displayName = "NavItem"
+
 
 
 type Capture = {
@@ -157,9 +168,60 @@ function CaptureGallery({ refreshKey }: { refreshKey: number }) {
 }
 
 
+function WindowSelector({ onSelect }: { onSelect: (id: string) => void }) {
+  const [windows, setWindows] = useState<{ id: string, name: string, thumbnail: string }[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const fetchWindows = async () => {
+    setLoading(true)
+    try {
+      const list = await window.ipcRenderer.invoke('get-windows')
+      setWindows(list)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchWindows()
+  }, [])
+
+  return (
+    <div className="w-64 p-2 flex flex-col gap-2">
+      {loading && (
+        <div className="flex items-center justify-center py-2">
+          <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+        </div>
+      )}
+      <div className="max-h-[300px] overflow-y-auto no-scrollbar flex flex-col gap-1">
+
+        {windows.map(win => (
+          <button
+            key={win.id}
+            onClick={() => onSelect(win.id)}
+            className="flex items-center gap-2 p-1.5 rounded hover:bg-sidebar-accent transition-colors text-left group"
+          >
+            <div className="w-12 h-8 rounded border border-border/40 bg-muted/20 overflow-hidden flex-shrink-0">
+               <img src={win.thumbnail} className="w-full h-full object-cover" />
+            </div>
+            <span className="text-[10px] truncate flex-1 font-medium">{win.name}</span>
+          </button>
+        ))}
+        {!loading && windows.length === 0 && (
+          <p className="text-[10px] text-muted-foreground text-center py-4">No active windows found</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+
 function App() {
+
   const [refreshKey, setRefreshKey] = useState(0)
   const [isCapturing, setIsCapturing] = useState(false)
+  const [isWindowSelectorOpen, setIsWindowSelectorOpen] = useState(false)
+
 
   useEffect(() => {
     // Sync with system theme
@@ -198,14 +260,40 @@ function App() {
     }
   }
 
+  const handleWindowSelected = async (id: string) => {
+    setIsWindowSelectorOpen(false)
+    setIsCapturing(true)
+    try {
+      await window.ipcRenderer.invoke('capture-window', id)
+      setRefreshKey(prev => prev + 1)
+    } finally {
+      setIsCapturing(false)
+    }
+  }
+
   return (
     <main className="flex h-screen w-full bg-background text-foreground overflow-hidden select-none font-sans">
       {/* Left Pane (Minimal Actions) */}
       <aside className="w-[180px] bg-background flex flex-col p-2 space-y-1 transition-all duration-300">
           <NavItem icon={Monitor} label="Full screen" shortcut="Alt+Shift+S" onClick={handleCapture} />
+          
+          <div 
+            className="relative"
+            onMouseEnter={() => setIsWindowSelectorOpen(true)}
+            onMouseLeave={() => setIsWindowSelectorOpen(false)}
+          >
+            <NavItem icon={Layout} label="Window" />
+            {isWindowSelectorOpen && (
+              <div className="absolute left-full top-0 ml-2 z-[100] border border-border/40 shadow-2xl bg-background/95 backdrop-blur-md rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150 origin-left">
+                <WindowSelector onSelect={handleWindowSelected} />
+              </div>
+            )}
+          </div>
 
-          <NavItem icon={Layout} label="Window" />
+
+
           <NavItem icon={MonitorDot} label="Monitor" />
+
           <NavItem icon={Crop} label="Region" />
         </aside>
 

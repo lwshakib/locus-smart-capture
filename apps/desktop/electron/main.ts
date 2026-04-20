@@ -216,8 +216,58 @@ app.whenReady().then(() => {
     } catch (err) {
       return { success: false, error: (err as any).message }
     }
-
   })
+
+  ipcMain.handle('get-windows', async () => {
+    try {
+      const sources = await desktopCapturer.getSources({ 
+        types: ['window'],
+        thumbnailSize: { width: 320, height: 180 }
+      })
+      return sources
+        .filter(s => s.name && s.name !== 'Locus - Smart Capture' && s.name !== 'Electron' && s.name !== 'Notification')
+        .map(s => ({
+          id: s.id,
+          name: s.name,
+          thumbnail: s.thumbnail.toDataURL()
+        }))
+    } catch (err) {
+      console.error('Failed to get windows:', err)
+      return []
+    }
+  })
+
+  ipcMain.handle('capture-window', async (_, sourceId: string) => {
+    try {
+      if (win) win.hide()
+      await new Promise(resolve => setTimeout(resolve, 200))
+
+      const sources = await desktopCapturer.getSources({
+        types: ['window'],
+        thumbnailSize: { width: 1920, height: 1080 }
+      })
+
+      const source = sources.find(s => s.id === sourceId)
+      if (!source) throw new Error('Target window not found')
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const filename = `locus_${timestamp}.png`
+      const filepath = path.join(CAP_FOLDER, filename)
+      
+      const image = source.thumbnail.toPNG()
+      fs.writeFileSync(filepath, image)
+      
+      win?.webContents.send('hotkey-capture')
+      
+      return { success: true, id: filename }
+    } catch (err) {
+      console.error('Window capture error:', err)
+      return { success: false, error: (err as any).message }
+    } finally {
+      if (win) win.show()
+    }
+  })
+
 
 
   // Register custom protocol for local images
