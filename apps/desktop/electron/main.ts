@@ -55,6 +55,7 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 
 let win: BrowserWindow | null
 let tray: Tray | null = null
+let regionWin: BrowserWindow | null = null
 
 function createWindow() {
   const preloadPath = path.join(__dirname, 'preload.js');
@@ -315,6 +316,88 @@ app.whenReady().then(() => {
       if (win) win.show()
     }
   })
+
+  ipcMain.handle('open-region-selector', () => {
+    if (win) win.hide()
+    
+    const primaryDisplay = screen.getPrimaryDisplay()
+    const { width, height } = primaryDisplay.bounds
+
+    regionWin = new BrowserWindow({
+      width,
+      height,
+      x: primaryDisplay.bounds.x,
+      y: primaryDisplay.bounds.y,
+      transparent: true,
+      frame: false,
+      alwaysOnTop: true,
+      resizable: false,
+      movable: false,
+      fullscreen: process.platform !== 'darwin',
+      skipTaskbar: true,
+      enableLargerThanScreen: true,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        sandbox: true,
+        contextIsolation: true,
+      },
+    })
+
+    if (VITE_DEV_SERVER_URL) {
+      regionWin.loadURL(VITE_DEV_SERVER_URL + '#region')
+    } else {
+      regionWin.loadFile(path.join(RENDERER_DIST, 'index.html'), { hash: 'region' })
+    }
+
+    regionWin.on('closed', () => {
+      regionWin = null
+    })
+  })
+
+  ipcMain.handle('cancel-region-selector', () => {
+    if (regionWin) {
+      regionWin.close()
+      regionWin = null
+    }
+    if (win) win.show()
+  })
+
+  ipcMain.handle('capture-region', async (_, rect: { x: number, y: number, width: number, height: number }) => {
+    try {
+      if (regionWin) {
+        regionWin.close()
+        regionWin = null
+      }
+
+      // Small delay to ensure selector window is completely gone
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      const primaryDisplay = screen.getPrimaryDisplay()
+      const sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: primaryDisplay.size
+      })
+      
+      const source = sources[0]
+      const image = source.thumbnail.crop(rect)
+      
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const filename = `locus_${timestamp}.png`
+      const filepath = path.join(CAP_FOLDER, filename)
+      
+      fs.writeFileSync(filepath, image.toPNG())
+      
+      win?.webContents.send('hotkey-capture')
+      
+      return { success: true, id: filename }
+    } catch (err) {
+      console.error('Region capture error:', err)
+      return { success: false, error: (err as any).message }
+    } finally {
+      if (win) win.show()
+    }
+  })
+
 
 
 

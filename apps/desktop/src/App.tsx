@@ -264,10 +264,91 @@ function MonitorSelector({ onSelect }: { onSelect: (index: number) => void }) {
 }
 
 
-function App() {
 
+function RegionSelectorOverlay() {
+  const [startPos, setStartPos] = useState<{ x: number, y: number } | null>(null)
+  const [currentPos, setCurrentPos] = useState<{ x: number, y: number } | null>(null)
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        window.ipcRenderer.invoke('cancel-region-selector')
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setStartPos({ x: e.clientX, y: e.clientY })
+    setCurrentPos({ x: e.clientX, y: e.clientY })
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (startPos) {
+      setCurrentPos({ x: e.clientX, y: e.clientY })
+    }
+  }
+
+  const handleMouseUp = () => {
+    if (startPos && currentPos) {
+      const x = Math.round(Math.min(startPos.x, currentPos.x))
+      const y = Math.round(Math.min(startPos.y, currentPos.y))
+      const width = Math.round(Math.abs(currentPos.x - startPos.x))
+      const height = Math.round(Math.abs(currentPos.y - startPos.y))
+
+      if (width > 5 && height > 5) {
+         window.ipcRenderer.invoke('capture-region', { x, y, width, height })
+      } else {
+         window.ipcRenderer.invoke('cancel-region-selector')
+      }
+    }
+    setStartPos(null)
+    setCurrentPos(null)
+  }
+
+  const rect = startPos && currentPos ? {
+    left: Math.min(startPos.x, currentPos.x),
+    top: Math.min(startPos.y, currentPos.y),
+    width: Math.abs(currentPos.x - startPos.x),
+    height: Math.abs(currentPos.y - startPos.y)
+  } : null
+
+  return (
+    <div 
+      className="fixed inset-0 z-[9999] bg-black/10 cursor-crosshair select-none"
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+    >
+      {rect && (
+        <div 
+          className="absolute border-2 border-indigo-500 bg-indigo-500/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.3)]"
+          style={{
+            left: rect.left,
+            top: rect.top,
+            width: rect.width,
+            height: rect.height
+          }}
+        />
+      )}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md text-white px-3 py-1 rounded-full text-[10px] font-medium pointer-events-none">
+        Drag to select region • Esc to cancel
+      </div>
+    </div>
+  )
+}
+
+
+function App() {
+  const isRegionMode = window.location.hash === '#region'
+
+  if (isRegionMode) {
+    return <RegionSelectorOverlay />
+  }
 
   const [refreshKey, setRefreshKey] = useState(0)
+
   const [isCapturing, setIsCapturing] = useState(false)
   const [isWindowSelectorOpen, setIsWindowSelectorOpen] = useState(false)
   const [isMonitorSelectorOpen, setIsMonitorSelectorOpen] = useState(false)
@@ -333,7 +414,12 @@ function App() {
     }
   }
 
+  const handleRegionCapture = () => {
+    window.ipcRenderer.invoke('open-region-selector')
+  }
+
   return (
+
 
     <main className="flex h-screen w-full bg-background text-foreground overflow-hidden select-none font-sans">
       {/* Left Pane (Minimal Actions) */}
@@ -366,7 +452,8 @@ function App() {
             )}
           </div>
 
-          <NavItem icon={Crop} label="Region" />
+          <NavItem icon={Crop} label="Region" onClick={handleRegionCapture} />
+
 
         </aside>
 
