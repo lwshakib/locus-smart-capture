@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, Menu, Tray, nativeImage } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -22,13 +22,36 @@ export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
+const getIconPath = (): string => {
+  const platform = process.platform;
+  const basePath = process.env.APP_ROOT;
+
+  switch (platform) {
+    case 'win32':
+      return path.join(basePath, 'public', 'icons', 'win', 'icon.ico');
+    case 'darwin':
+      return path.join(basePath, 'public', 'icons', 'mac', 'icon.icns');
+    case 'linux':
+    default:
+      return path.join(basePath, 'public', 'icons', 'png', '256x256.png');
+  }
+};
+
+const iconPath = getIconPath();
+
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
 let win: BrowserWindow | null
+let tray: Tray | null = null
 
 function createWindow() {
   win = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+    title: 'Locus - Smart Capture',
+    width: 900,
+    height: 600,
+    resizable: false,
+    autoHideMenuBar: true,
+    icon: nativeImage.createFromPath(iconPath),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
     },
@@ -65,4 +88,20 @@ app.on('activate', () => {
   }
 })
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  Menu.setApplicationMenu(null)
+  createWindow()
+
+  // Initialize System Tray
+  tray = new Tray(iconPath)
+  const contextMenu = Menu.buildFromTemplate([
+    { label: 'Show App', click: () => win?.show() },
+    { type: 'separator' },
+    { label: 'Quit', click: () => {
+        app.quit()
+      } 
+    }
+  ])
+  tray.setToolTip('Locus - Smart Capture')
+  tray.setContextMenu(contextMenu)
+})
