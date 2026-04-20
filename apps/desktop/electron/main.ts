@@ -268,6 +268,55 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle('get-monitors', async () => {
+    try {
+      const displays = screen.getAllDisplays()
+      return displays.map((d, index) => ({
+        id: d.id,
+        name: `Monitor ${index + 1}`,
+        resolution: `${d.size.width}x${d.size.height}`,
+        isPrimary: d.id === screen.getPrimaryDisplay().id,
+        index
+      }))
+    } catch (err) {
+      console.error('Failed to get monitors:', err)
+      return []
+    }
+  })
+
+  ipcMain.handle('capture-monitor', async (_, monitorIndex: number) => {
+    try {
+      if (win) win.hide()
+      await new Promise(resolve => setTimeout(resolve, 200))
+
+      const sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: { width: 1920, height: 1080 }
+      })
+
+      // Try to match the monitor index
+      const source = sources[monitorIndex] || sources[0]
+      if (!source) throw new Error('Monitor source not found')
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const filename = `locus_${timestamp}.png`
+      const filepath = path.join(CAP_FOLDER, filename)
+      
+      const image = source.thumbnail.toPNG()
+      fs.writeFileSync(filepath, image)
+      
+      win?.webContents.send('hotkey-capture')
+      
+      return { success: true, id: filename }
+    } catch (err) {
+      console.error('Monitor capture error:', err)
+      return { success: false, error: (err as any).message }
+    } finally {
+      if (win) win.show()
+    }
+  })
+
+
 
 
   // Register custom protocol for local images

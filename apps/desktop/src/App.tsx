@@ -216,11 +216,62 @@ function WindowSelector({ onSelect }: { onSelect: (id: string) => void }) {
 }
 
 
+function MonitorSelector({ onSelect }: { onSelect: (index: number) => void }) {
+  const [monitors, setMonitors] = useState<{ name: string, resolution: string, isPrimary: boolean, index: number }[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const fetchMonitors = async () => {
+    setLoading(true)
+    try {
+      const list = await window.ipcRenderer.invoke('get-monitors')
+      setMonitors(list)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchMonitors()
+  }, [])
+
+  return (
+    <div className="w-48 p-2 flex flex-col gap-1">
+      {loading && (
+        <div className="flex items-center justify-center py-2">
+          <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+        </div>
+      )}
+      {monitors.map(monitor => (
+        <button
+          key={monitor.index}
+          onClick={() => onSelect(monitor.index)}
+          className="flex flex-col p-2 rounded hover:bg-sidebar-accent transition-colors text-left group"
+        >
+          <div className="flex items-center justify-between w-full">
+            <span className="text-[10px] font-medium">{monitor.name}</span>
+            {monitor.isPrimary && (
+               <span className="text-[8px] bg-indigo-500/20 text-indigo-400 px-1 rounded uppercase font-bold tracking-tighter">Primary</span>
+            )}
+          </div>
+          <span className="text-[9px] text-muted-foreground">{monitor.resolution}</span>
+        </button>
+      ))}
+      {!loading && monitors.length === 0 && (
+        <p className="text-[10px] text-muted-foreground text-center py-4">No monitors detected</p>
+      )}
+    </div>
+  )
+}
+
+
 function App() {
+
 
   const [refreshKey, setRefreshKey] = useState(0)
   const [isCapturing, setIsCapturing] = useState(false)
   const [isWindowSelectorOpen, setIsWindowSelectorOpen] = useState(false)
+  const [isMonitorSelectorOpen, setIsMonitorSelectorOpen] = useState(false)
+
 
 
   useEffect(() => {
@@ -271,7 +322,19 @@ function App() {
     }
   }
 
+  const handleMonitorSelected = async (index: number) => {
+    setIsMonitorSelectorOpen(false)
+    setIsCapturing(true)
+    try {
+      await window.ipcRenderer.invoke('capture-monitor', index)
+      setRefreshKey(prev => prev + 1)
+    } finally {
+      setIsCapturing(false)
+    }
+  }
+
   return (
+
     <main className="flex h-screen w-full bg-background text-foreground overflow-hidden select-none font-sans">
       {/* Left Pane (Minimal Actions) */}
       <aside className="w-[180px] bg-background flex flex-col p-2 space-y-1 transition-all duration-300">
@@ -290,11 +353,21 @@ function App() {
             )}
           </div>
 
-
-
-          <NavItem icon={MonitorDot} label="Monitor" />
+          <div 
+            className="relative"
+            onMouseEnter={() => setIsMonitorSelectorOpen(true)}
+            onMouseLeave={() => setIsMonitorSelectorOpen(false)}
+          >
+            <NavItem icon={MonitorDot} label="Monitor" />
+            {isMonitorSelectorOpen && (
+              <div className="absolute left-full top-0 ml-2 z-[100] border border-border/40 shadow-2xl bg-background/95 backdrop-blur-md rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150 origin-left">
+                <MonitorSelector onSelect={handleMonitorSelected} />
+              </div>
+            )}
+          </div>
 
           <NavItem icon={Crop} label="Region" />
+
         </aside>
 
         {/* Right Pane (Persistent Gallery) */}
