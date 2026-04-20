@@ -95,8 +95,76 @@ function HotkeySettings() {
   )
 }
 
+type Capture = {
+  id: string
+  name: string
+  url: string
+  timestamp: number
+}
+
+function CaptureCard({ capture }: { capture: Capture }) {
+  return (
+    <div className="group relative aspect-video overflow-hidden rounded-xl bg-muted/30 border border-border/50 hover:border-indigo-500/50 transition-all shadow-sm hover:shadow-md cursor-pointer">
+      <img 
+        src={capture.url} 
+        alt={capture.name} 
+        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" 
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+        <p className="text-[10px] text-white/80 font-medium truncate">
+          {new Date(capture.timestamp).toLocaleString()}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function CaptureGallery({ refreshKey }: { refreshKey: number }) {
+  const [captures, setCaptures] = useState<Capture[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchCaptures = async () => {
+    try {
+      const data = await window.ipcRenderer.invoke('get-captures')
+      setCaptures(data)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchCaptures()
+  }, [refreshKey])
+
+  if (loading) return (
+    <div className="flex-1 flex items-center justify-center">
+      <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+
+  if (captures.length === 0) return (
+    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center opacity-50">
+      <ImageIcon className="w-12 h-12 mb-4" />
+      <h3 className="text-lg font-semibold">No captures found</h3>
+      <p className="text-sm max-w-[200px]">Captured screenshots will appear here.</p>
+    </div>
+  )
+
+  return (
+    <div className="flex-1 p-6 overflow-y-auto no-scrollbar">
+      <div className="grid grid-cols-2 gap-4">
+        {captures.map((cap) => (
+          <CaptureCard key={cap.id} capture={cap} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function App() {
   const [activeItem, setActiveItem] = useState("Full screen")
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [isCapturing, setIsCapturing] = useState(false)
 
   useEffect(() => {
     // Sync with system theme
@@ -114,12 +182,28 @@ function App() {
     return () => darkQuery.removeEventListener('change', updateTheme)
   }, [])
 
+  const handleCapture = async () => {
+    setActiveItem("Full screen")
+    setIsCapturing(true)
+    try {
+      await window.ipcRenderer.invoke('capture-full-screen')
+      setRefreshKey(prev => prev + 1)
+    } finally {
+      setIsCapturing(false)
+    }
+  }
+
   return (
     <main className="flex h-screen w-full bg-background text-foreground overflow-hidden select-none font-sans">
       {/* Left Pane (Narrower) */}
       <aside className="w-[240px] bg-background flex flex-col p-2 overflow-y-auto no-scrollbar transition-all duration-300">
         <div className="space-y-0.5">
-          <NavItem icon={Monitor} label="Full screen" isActive={activeItem === "Full screen"} onClick={() => setActiveItem("Full screen")} />
+          <NavItem 
+            icon={Monitor} 
+            label="Full screen" 
+            isActive={activeItem === "Full screen"} 
+            onClick={handleCapture} 
+          />
           <NavItem icon={Layout} label="Window" isActive={activeItem === "Window"} onClick={() => setActiveItem("Window")} />
           <NavItem icon={MonitorDot} label="Monitor" isActive={activeItem === "Monitor"} onClick={() => setActiveItem("Monitor")} />
           <NavItem icon={Crop} label="Region" isActive={activeItem === "Region"} onClick={() => setActiveItem("Region")} />
@@ -154,9 +238,20 @@ function App() {
       </aside>
 
       {/* Right Pane (Wider) */}
-      <section className="flex-1 bg-background flex flex-col">
+      <section className="flex-1 bg-background flex flex-col relative">
+        {isCapturing && (
+          <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-50 flex items-center justify-center">
+             <div className="flex flex-col items-center gap-2">
+                <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-sm font-medium animate-pulse">Capturing...</p>
+             </div>
+          </div>
+        )}
+
         {activeItem === "Hotkey settings..." ? (
           <HotkeySettings />
+        ) : activeItem === "Full screen" ? (
+          <CaptureGallery refreshKey={refreshKey} />
         ) : (
           <div className="flex-1" />
         )}
