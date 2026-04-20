@@ -8,90 +8,26 @@ import {
   Layout,
   MonitorDot,
   Crop,
-  CheckSquare, 
-  FileOutput, 
-  Globe, 
-  Settings, 
-  Command, 
-  Terminal, 
-  Cloud, 
-  HardDrive,
-  Folder, 
-  History as HistoryIcon, 
-  Image as ImageIcon, 
-  Bug, 
-  Heart, 
-  MessageSquare, 
-  Info 
+  Image as ImageIcon
 } from 'lucide-react'
 
 function NavItem({ 
   icon: Icon, 
   label, 
-  isActive, 
   onClick 
 }: { 
   icon: LucideIcon, 
   label: string,
-  isActive?: boolean,
   onClick?: () => void
 }) {
   return (
     <button 
       onClick={onClick}
-      className={cn(
-        "flex items-center gap-3 w-full px-3 py-1.5 text-sm font-medium rounded-md transition-colors group",
-        isActive 
-          ? "bg-sidebar-accent text-sidebar-accent-foreground" 
-          : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-muted-foreground hover:text-foreground"
-      )}
+      className="flex items-center gap-2 w-full px-2 py-1.5 text-[11px] font-medium rounded hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-muted-foreground hover:text-foreground transition-all group"
     >
-      <Icon className={cn(
-        "w-4 h-4 transition-colors",
-        isActive ? "text-indigo-500" : "text-slate-500 group-hover:text-indigo-500 dark:group-hover:text-indigo-400"
-      )} />
+      <Icon className="w-4 h-4 text-slate-400 group-hover:text-foreground transition-colors" />
       <span className="truncate">{label}</span>
     </button>
-  )
-}
-
-function Separator() {
-  return <div className="h-px bg-border my-2 mx-2" />
-}
-
-function HotkeySettings() {
-  const hotkeys = [
-    { label: "Full screen capture", keys: ["Ctrl", "PrintScreen"] },
-    { label: "Region capture", keys: ["PrintScreen"] },
-    { label: "Window capture", keys: ["Alt", "PrintScreen"] },
-    { label: "Last region capture", keys: ["Shift", "PrintScreen"] },
-    { label: "Screen recording (custom)", keys: ["Shift", "PrintScreen"] },
-    { label: "Screen recording (GIF)", keys: ["Ctrl", "Shift", "PrintScreen"] },
-  ]
-
-  return (
-    <div className="flex flex-col h-full p-8 overflow-y-auto no-scrollbar">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight">Hotkey settings</h1>
-        <p className="text-muted-foreground text-sm mt-1">Configure keyboard shortcuts for various capture tasks.</p>
-      </div>
-
-      <div className="space-y-3">
-        {hotkeys.map((hk, i) => (
-          <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
-            <span className="text-sm font-medium">{hk.label}</span>
-            <div className="flex items-center gap-4">
-              <div className="flex gap-1">
-                {hk.keys.map((k, j) => (
-                  <Kbd key={j}>{k}</Kbd>
-                ))}
-              </div>
-              <Button variant="ghost" size="xs" className="text-xs h-7">Change</Button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
   )
 }
 
@@ -143,16 +79,15 @@ function CaptureGallery({ refreshKey }: { refreshKey: number }) {
   )
 
   if (captures.length === 0) return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center opacity-50">
-      <ImageIcon className="w-12 h-12 mb-4" />
-      <h3 className="text-lg font-semibold">No captures found</h3>
-      <p className="text-sm max-w-[200px]">Captured screenshots will appear here.</p>
+    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center opacity-40">
+      <ImageIcon className="w-10 h-10 mb-4" />
+      <p className="text-[11px] max-w-[150px]">Your captures will appear here.</p>
     </div>
   )
 
   return (
-    <div className="flex-1 p-6 overflow-y-auto no-scrollbar">
-      <div className="grid grid-cols-2 gap-4">
+    <div className="flex-1 p-4 overflow-y-auto no-scrollbar">
+      <div className="grid grid-cols-2 gap-3">
         {captures.map((cap) => (
           <CaptureCard key={cap.id} capture={cap} />
         ))}
@@ -162,7 +97,6 @@ function CaptureGallery({ refreshKey }: { refreshKey: number }) {
 }
 
 function App() {
-  const [activeItem, setActiveItem] = useState("Full screen")
   const [refreshKey, setRefreshKey] = useState(0)
   const [isCapturing, setIsCapturing] = useState(false)
 
@@ -183,7 +117,6 @@ function App() {
   }, [])
 
   const handleCapture = async () => {
-    setActiveItem("Full screen")
     setIsCapturing(true)
     try {
       await window.ipcRenderer.invoke('capture-full-screen')
@@ -195,69 +128,29 @@ function App() {
 
   return (
     <main className="flex h-screen w-full bg-background text-foreground overflow-hidden select-none font-sans">
-      {/* Left Pane (Narrower) */}
-      <aside className="w-[240px] bg-background flex flex-col p-2 overflow-y-auto no-scrollbar transition-all duration-300">
-        <div className="space-y-0.5">
-          <NavItem 
-            icon={Monitor} 
-            label="Full screen" 
-            isActive={activeItem === "Full screen"} 
-            onClick={handleCapture} 
-          />
-          <NavItem icon={Layout} label="Window" isActive={activeItem === "Window"} onClick={() => setActiveItem("Window")} />
-          <NavItem icon={MonitorDot} label="Monitor" isActive={activeItem === "Monitor"} onClick={() => setActiveItem("Monitor")} />
-          <NavItem icon={Crop} label="Region" isActive={activeItem === "Region"} onClick={() => setActiveItem("Region")} />
-          
-          <Separator />
-          
-          <NavItem icon={CheckSquare} label="After capture tasks" isActive={activeItem === "After capture tasks"} onClick={() => setActiveItem("After capture tasks")} />
-          <NavItem icon={FileOutput} label="After upload tasks" isActive={activeItem === "After upload tasks"} onClick={() => setActiveItem("After upload tasks")} />
-          <NavItem icon={Globe} label="Destinations" isActive={activeItem === "Destinations"} onClick={() => setActiveItem("Destinations")} />
-          
-          <Separator />
-          
-          <NavItem icon={Settings} label="Application settings..." isActive={activeItem === "Application settings..."} onClick={() => setActiveItem("Application settings...")} />
-          <NavItem icon={Command} label="Task settings..." isActive={activeItem === "Task settings..."} onClick={() => setActiveItem("Task settings...")} />
-          <NavItem icon={Terminal} label="Hotkey settings..." isActive={activeItem === "Hotkey settings..."} onClick={() => setActiveItem("Hotkey settings...")} />
-          <NavItem icon={Cloud} label="Destination settings..." isActive={activeItem === "Destination settings..."} onClick={() => setActiveItem("Destination settings...")} />
-          <NavItem icon={HardDrive} label="Custom uploader settings..." isActive={activeItem === "Custom uploader settings..."} onClick={() => setActiveItem("Custom uploader settings...")} />
-          
-          <Separator />
-          
-          <NavItem icon={Folder} label="Screenshots folder..." isActive={activeItem === "Screenshots folder..."} onClick={() => setActiveItem("Screenshots folder...")} />
-          <NavItem icon={HistoryIcon} label="History..." isActive={activeItem === "History..."} onClick={() => setActiveItem("History...")} />
-          <NavItem icon={ImageIcon} label="Image history..." isActive={activeItem === "Image history..."} onClick={() => setActiveItem("Image history...")} />
-          
-          <Separator />
-          
-          <NavItem icon={Bug} label="Debug" isActive={activeItem === "Debug"} onClick={() => setActiveItem("Debug")} />
-          <NavItem icon={Heart} label="Donate..." isActive={activeItem === "Donate..."} onClick={() => setActiveItem("Donate...")} />
-          <NavItem icon={MessageSquare} label="Discord..." isActive={activeItem === "Discord..."} onClick={() => setActiveItem("Discord...")} />
-          <NavItem icon={Info} label="About..." isActive={activeItem === "About..."} onClick={() => setActiveItem("About...")} />
-        </div>
-      </aside>
+      {/* Left Pane (Minimal Actions) */}
+      <aside className="w-[180px] bg-background flex flex-col p-2 space-y-1 transition-all duration-300">
+          <NavItem icon={Monitor} label="Full screen" onClick={handleCapture} />
+          <NavItem icon={Layout} label="Window" />
+          <NavItem icon={MonitorDot} label="Monitor" />
+          <NavItem icon={Crop} label="Region" />
+        </aside>
 
-      {/* Right Pane (Wider) */}
-      <section className="flex-1 bg-background flex flex-col relative">
-        {isCapturing && (
-          <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-50 flex items-center justify-center">
-             <div className="flex flex-col items-center gap-2">
-                <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                <p className="text-sm font-medium animate-pulse">Capturing...</p>
-             </div>
-          </div>
-        )}
+        {/* Right Pane (Persistent Gallery) */}
+        <section className="flex-1 bg-background flex flex-col relative border-l border-border/20">
+          {isCapturing && (
+            <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-50 flex items-center justify-center">
+               <div className="flex flex-col items-center gap-2">
+                  <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-[10px] font-medium animate-pulse">Capturing...</p>
+               </div>
+            </div>
+          )}
 
-        {activeItem === "Hotkey settings..." ? (
-          <HotkeySettings />
-        ) : activeItem === "Full screen" ? (
           <CaptureGallery refreshKey={refreshKey} />
-        ) : (
-          <div className="flex-1" />
-        )}
-      </section>
-    </main>
-  )
-}
+        </section>
+      </main>
+    )
+  }
 
 export default App

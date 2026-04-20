@@ -1,8 +1,7 @@
-import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, protocol, net } from 'electron'
+import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, protocol, net, desktopCapturer, screen } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
-import screenshot from 'screenshot-desktop'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -18,8 +17,6 @@ const CAP_FOLDER = path.join(app.getPath('pictures'), 'Locus - Smart Capture')
 if (!fs.existsSync(CAP_FOLDER)) {
   fs.mkdirSync(CAP_FOLDER, { recursive: true })
 }
-
-
 
 const getIconPath = (): string => {
   const platform = process.platform;
@@ -44,16 +41,20 @@ let win: BrowserWindow | null
 let tray: Tray | null = null
 
 function createWindow() {
+  const preloadPath = path.join(__dirname, 'preload.js');
+
   win = new BrowserWindow({
     title: 'Locus - Smart Capture',
     width: 900,
     height: 600,
     resizable: false,
     autoHideMenuBar: true,
+    transparent: true,
     icon: nativeImage.createFromPath(iconPath),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'),
-      sandbox: false, // Required for some IPC features
+      preload: preloadPath,
+      sandbox: true,
+      contextIsolation: true,
     },
   })
 
@@ -69,49 +70,6 @@ function createWindow() {
   }
 }
 
-// IPC Handlers
-ipcMain.handle('capture-full-screen', async () => {
-  try {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const filename = `capture_${timestamp}.png`
-    const filepath = path.join(CAP_FOLDER, filename)
-    
-    await screenshot({ filename: filepath })
-    
-    return {
-      id: filename,
-      name: filename,
-      url: `locus-cap://${filepath}`,
-      timestamp: Date.now()
-    }
-  } catch (err) {
-    console.error('Screenshot failed:', err)
-    throw err
-  }
-})
-
-ipcMain.handle('get-captures', async () => {
-  try {
-    const files = fs.readdirSync(CAP_FOLDER)
-      .filter(f => f.endsWith('.png'))
-      .map(f => {
-        const filepath = path.join(CAP_FOLDER, f)
-        const stats = fs.statSync(filepath)
-        return {
-          id: f,
-          name: f,
-          url: `locus-cap://${filepath}`,
-          timestamp: stats.mtimeMs
-        }
-      })
-      .sort((a, b) => b.timestamp - a.timestamp)
-    return files
-  } catch (err) {
-    console.error('Failed to get captures:', err)
-    return []
-  }
-})
-
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
@@ -126,9 +84,70 @@ app.on('activate', () => {
 })
 
 app.whenReady().then(() => {
+  // IPC Handlers
+  ipcMain.handle('capture-full-screen', async () => {
+    try {
+      const primaryDisplay = screen.getPrimaryDisplay()
+      const { width, height } = primaryDisplay.size
+      
+      const sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: { width, height } // Use exact screen size
+      })
+
+      const source = sources[0]
+      
+      if (!source) {
+        throw new Error('No screen source found');
+      }
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const filename = `capture_${timestamp}.png`
+      const filepath = path.join(CAP_FOLDER, filename)
+      
+      const image = source.thumbnail.toPNG()
+      fs.writeFileSync(filepath, image)
+      
+      // Normalize path for protocol
+      const normalizedPath = filepath.split(path.sep).join('/');
+      
+      return {
+        id: filename,
+        name: filename,
+        url: `locus-cap://${normalizedPath}`,
+        timestamp: Date.now()
+      }
+    } catch (err) {
+      throw err
+    }
+  })
+
+  ipcMain.handle('get-captures', async () => {
+    try {
+      const files = fs.readdirSync(CAP_FOLDER)
+        .filter(f => f.endsWith('.png'))
+        .map(f => {
+          const filepath = path.join(CAP_FOLDER, f)
+          const stats = fs.statSync(filepath)
+          return {
+            id: f,
+            name: f,
+            url: `locus-cap://${filepath}`,
+            timestamp: stats.mtimeMs
+          }
+        })
+        .sort((a, b) => b.timestamp - a.timestamp)
+      return files
+    } catch (err) {
+      return []
+    }
+  })
+
   // Register custom protocol for local images
   protocol.handle('locus-cap', (request) => {
-    const fileUrl = request.url.replace('locus-cap://', 'file://')
+    const normalized = request.url.replace('locus-cap://', '')
+    // Handle Windows drive letter formatting: file:///C:/path
+    const fileUrl = normalized.startsWith('/') ? `file://${normalized}` : `file:///${normalized}`
     return net.fetch(fileUrl)
   })
 
