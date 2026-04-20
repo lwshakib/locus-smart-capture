@@ -336,6 +336,7 @@ app.whenReady().then(() => {
       fullscreen: process.platform !== 'darwin',
       skipTaskbar: true,
       enableLargerThanScreen: true,
+      backgroundColor: '#00000000',
       webPreferences: {
         preload: path.join(__dirname, 'preload.js'),
         sandbox: true,

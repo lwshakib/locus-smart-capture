@@ -279,6 +279,14 @@ function RegionSelectorOverlay() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  useEffect(() => {
+    // Clear body background for transparency
+    document.body.style.backgroundColor = 'transparent'
+    return () => {
+      document.body.style.backgroundColor = ''
+    }
+  }, [])
+
   const handleMouseDown = (e: React.MouseEvent) => {
     setStartPos({ x: e.clientX, y: e.clientY })
     setCurrentPos({ x: e.clientX, y: e.clientY })
