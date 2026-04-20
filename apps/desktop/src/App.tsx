@@ -1,69 +1,98 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/electron-vite.animate.svg'
+import { useEffect } from 'react'
+import { 
+  LucideIcon,
+  Camera, 
+  Upload, 
+  Grid3X3, 
+  Wrench, 
+  CheckSquare, 
+  FileOutput, 
+  Globe, 
+  Settings, 
+  Command, 
+  Terminal, 
+  Cloud, 
+  HardDrive,
+  Folder, 
+  History as HistoryIcon, 
+  Image as ImageIcon, 
+  Bug, 
+  Heart, 
+  MessageSquare, 
+  Info 
+} from 'lucide-react'
 
+function NavItem({ icon: Icon, label }: { icon: LucideIcon, label: string }) {
+  return (
+    <button className="flex items-center gap-3 w-full px-3 py-1.5 text-sm font-medium rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors group">
+      <Icon className="w-4 h-4 text-slate-500 group-hover:text-indigo-500 dark:group-hover:text-indigo-400" />
+      <span className="truncate">{label}</span>
+    </button>
+  )
+}
+
+function Separator() {
+  return <div className="h-px bg-border my-2 mx-2" />
+}
 
 function App() {
-  return (
-    <main className="flex h-screen w-full bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50 overflow-hidden select-none font-sans">
-      {/* Left Pane (Narrower) */}
-      <aside className="w-[300px] border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col p-6 shadow-sm z-10 transition-all duration-300">
-        <div className="mb-10">
-          <h2 className="text-xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400">Locus</h2>
-          <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mt-1">Smart Capture</p>
-        </div>
-        
-        <nav className="flex-1 space-y-4">
-          <div className="space-y-1">
-            <div className="h-10 w-full bg-indigo-50 dark:bg-indigo-950/30 border-l-4 border-indigo-500 rounded-r-md flex items-center px-3">
-              <div className="h-4 w-24 bg-indigo-200 dark:bg-indigo-800 rounded" />
-            </div>
-            <div className="h-10 w-full hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md flex items-center px-4 transition-colors">
-              <div className="h-4 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
-            </div>
-            <div className="h-10 w-full hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md flex items-center px-4 transition-colors">
-              <div className="h-4 w-28 bg-slate-200 dark:bg-slate-700 rounded" />
-            </div>
-          </div>
-        </nav>
+  useEffect(() => {
+    // Sync with system theme
+    const darkQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const updateTheme = (e: MediaQueryListEvent | MediaQueryList) => {
+      if (e.matches) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+    }
+    
+    updateTheme(darkQuery)
+    darkQuery.addEventListener('change', updateTheme)
+    return () => darkQuery.removeEventListener('change', updateTheme)
+  }, [])
 
-        <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700" />
-            <div className="flex-1">
-               <div className="h-3 w-20 bg-slate-200 dark:bg-slate-700 rounded mb-1" />
-               <div className="h-2 w-16 bg-slate-100 dark:bg-slate-800 rounded " />
-            </div>
-          </div>
+  return (
+    <main className="flex h-screen w-full bg-background text-foreground overflow-hidden select-none font-sans border border-border">
+      {/* Left Pane (Narrower) */}
+      <aside className="w-[240px] border-r border-border bg-background flex flex-col p-2 overflow-y-auto no-scrollbar transition-all duration-300">
+        <div className="space-y-0.5">
+          <NavItem icon={Camera} label="Capture" />
+          <NavItem icon={Upload} label="Upload" />
+          <NavItem icon={Grid3X3} label="Workflows" />
+          <NavItem icon={Wrench} label="Tools" />
+          
+          <Separator />
+          
+          <NavItem icon={CheckSquare} label="After capture tasks" />
+          <NavItem icon={FileOutput} label="After upload tasks" />
+          <NavItem icon={Globe} label="Destinations" />
+          
+          <Separator />
+          
+          <NavItem icon={Settings} label="Application settings..." />
+          <NavItem icon={Command} label="Task settings..." />
+          <NavItem icon={Terminal} label="Hotkey settings..." />
+          <NavItem icon={Cloud} label="Destination settings..." />
+          <NavItem icon={HardDrive} label="Custom uploader settings..." />
+          
+          <Separator />
+          
+          <NavItem icon={Folder} label="Screenshots folder..." />
+          <NavItem icon={HistoryIcon} label="History..." />
+          <NavItem icon={ImageIcon} label="Image history..." />
+          
+          <Separator />
+          
+          <NavItem icon={Bug} label="Debug" />
+          <NavItem icon={Heart} label="Donate..." />
+          <NavItem icon={MessageSquare} label="Discord..." />
+          <NavItem icon={Info} label="About..." />
         </div>
       </aside>
 
       {/* Right Pane (Wider) */}
-      <section className="flex-1 flex flex-col p-8 bg-slate-50/50 dark:bg-slate-950/50">
-        <header className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Captures</h1>
-          <div className="flex gap-2">
-             <div className="h-10 w-32 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-200 dark:shadow-none" />
-          </div>
-        </header>
-
-        <div className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col items-center justify-center p-12 text-center">
-          <div className="w-64 space-y-6">
-            <div className="h-24 w-24 bg-indigo-50 dark:bg-indigo-950/30 rounded-3xl mx-auto flex items-center justify-center">
-               <div className="h-10 w-10 border-4 border-indigo-500 border-dashed rounded-full animate-[spin_5s_linear_infinite]" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">No Captures Yet</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-sm mt-2 leading-relaxed">
-                Start capturing your desktop to see your smart snippets here. Everything is synced in real-time.
-              </p>
-            </div>
-            <div className="pt-4">
-               <div className="h-10 w-40 bg-slate-100 dark:bg-slate-800 rounded-full mx-auto" />
-            </div>
-          </div>
-        </div>
-      </section>
+      <section className="flex-1 bg-background flex flex-col" />
     </main>
   )
 }
