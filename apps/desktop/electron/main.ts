@@ -1,4 +1,5 @@
-import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, protocol, net, desktopCapturer, screen, shell } from 'electron'
+import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, protocol, net, desktopCapturer, screen, shell, globalShortcut } from 'electron'
+
 
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
@@ -98,19 +99,45 @@ app.on('activate', () => {
   }
 })
 
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
+})
+
+
 app.whenReady().then(() => {
+  // Global Shortcuts
+  globalShortcut.register('Alt+Shift+S', async () => {
+    try {
+      await performCaptureFullScreen()
+    } catch (err) {
+      console.error('Global shortcut capture failed:', err)
+    }
+  })
+
   // IPC Handlers
   ipcMain.handle('capture-full-screen', async () => {
+    return await performCaptureFullScreen()
+  })
+
+  async function performCaptureFullScreen() {
     try {
+
+      // Hide the window so it doesn't appear in the screenshot
+      if (win) win.hide()
+      
+      // Small delay to allow the window to finish hiding
+      await new Promise(resolve => setTimeout(resolve, 200))
+
       const primaryDisplay = screen.getPrimaryDisplay()
       const { width, height } = primaryDisplay.size
       
       const sources = await desktopCapturer.getSources({
-        types: ['screen'],
-        thumbnailSize: { width, height } // Use exact screen size
+        types: ['screen', 'window'], // Include both for better source detection
+        thumbnailSize: { width, height }
       })
 
-      const source = sources[0]
+      // Try to find the primary screen source
+      const source = sources.find(s => s.name === 'Entire Screen' || s.name === 'Screen 1') || sources[0]
       
       if (!source) {
         throw new Error('No screen source found');
@@ -118,7 +145,6 @@ app.whenReady().then(() => {
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
       const filename = `locus_${timestamp}.png`
-
       const filepath = path.join(CAP_FOLDER, filename)
       
       const image = source.thumbnail.toPNG()
@@ -130,12 +156,15 @@ app.whenReady().then(() => {
         url: `locus-cap://capture/${filename}`,
         timestamp: Date.now()
       }
-
-
     } catch (err) {
+      console.error('Capture error:', err)
       throw err
+    } finally {
+      // Always show the window back
+      if (win) win.show()
     }
-  })
+  }
+
 
   ipcMain.handle('get-captures', async () => {
     try {

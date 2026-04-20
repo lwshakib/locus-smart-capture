@@ -16,22 +16,32 @@ import {
 function NavItem({ 
   icon: Icon, 
   label, 
+  shortcut,
   onClick 
 }: { 
   icon: LucideIcon, 
   label: string,
+  shortcut?: string,
   onClick?: () => void
 }) {
   return (
     <button 
       onClick={onClick}
-      className="flex items-center gap-2 w-full px-2 py-1.5 text-[11px] font-medium rounded hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-muted-foreground hover:text-foreground transition-all group"
+      className="flex items-center justify-between w-full px-2 py-1.5 text-[11px] font-medium rounded hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-muted-foreground hover:text-foreground transition-all group"
     >
-      <Icon className="w-4 h-4 text-slate-400 group-hover:text-foreground transition-colors" />
-      <span className="truncate">{label}</span>
+      <div className="flex items-center gap-2 truncate">
+        <Icon className="w-4 h-4 text-slate-400 group-hover:text-foreground transition-colors" />
+        <span className="truncate">{label}</span>
+      </div>
+      {shortcut && (
+        <Kbd className="text-[9px] opacity-40 group-hover:opacity-100 transition-opacity bg-background/50 border-muted-foreground/20">
+          {shortcut}
+        </Kbd>
+      )}
     </button>
   )
 }
+
 
 type Capture = {
   id: string
@@ -164,8 +174,19 @@ function App() {
     
     updateTheme(darkQuery)
     darkQuery.addEventListener('change', updateTheme)
-    return () => darkQuery.removeEventListener('change', updateTheme)
+
+    // Listen for global hotkey captures
+    const cleanup = window.ipcRenderer.on('hotkey-capture', () => {
+      setRefreshKey(prev => prev + 1)
+    })
+
+    return () => {
+      darkQuery.removeEventListener('change', updateTheme)
+      if (typeof cleanup === 'function') cleanup()
+    }
   }, [])
+
+
 
   const handleCapture = async () => {
     setIsCapturing(true)
@@ -181,7 +202,8 @@ function App() {
     <main className="flex h-screen w-full bg-background text-foreground overflow-hidden select-none font-sans">
       {/* Left Pane (Minimal Actions) */}
       <aside className="w-[180px] bg-background flex flex-col p-2 space-y-1 transition-all duration-300">
-          <NavItem icon={Monitor} label="Full screen" onClick={handleCapture} />
+          <NavItem icon={Monitor} label="Full screen" shortcut="Alt+Shift+S" onClick={handleCapture} />
+
           <NavItem icon={Layout} label="Window" />
           <NavItem icon={MonitorDot} label="Monitor" />
           <NavItem icon={Crop} label="Region" />
