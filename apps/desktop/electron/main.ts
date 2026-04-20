@@ -1,4 +1,5 @@
-import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, protocol, net, desktopCapturer, screen } from 'electron'
+import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, protocol, net, desktopCapturer, screen, shell } from 'electron'
+
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
@@ -116,7 +117,8 @@ app.whenReady().then(() => {
       }
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-      const filename = `capture_${timestamp}.png`
+      const filename = `locus_${timestamp}.png`
+
       const filepath = path.join(CAP_FOLDER, filename)
       
       const image = source.thumbnail.toPNG()
@@ -158,6 +160,30 @@ app.whenReady().then(() => {
       return []
     }
   })
+
+  ipcMain.handle('delete-capture', async (_, filename: string) => {
+    try {
+      const filepath = path.join(CAP_FOLDER, filename)
+      if (fs.existsSync(filepath)) {
+        fs.unlinkSync(filepath)
+        return { success: true }
+      }
+      return { success: false, error: 'File not found' }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('open-capture', async (_, filename: string) => {
+    try {
+      const filepath = path.join(CAP_FOLDER, filename)
+      await shell.openPath(filepath)
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  })
+
 
   // Register custom protocol for local images
   protocol.handle('locus-cap', async (request) => {

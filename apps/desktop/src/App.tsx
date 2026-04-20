@@ -8,8 +8,10 @@ import {
   Layout,
   MonitorDot,
   Crop,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Trash2
 } from 'lucide-react'
+
 
 function NavItem({ 
   icon: Icon, 
@@ -38,9 +40,27 @@ type Capture = {
   timestamp: number
 }
 
-function CaptureCard({ capture }: { capture: Capture }) {
+function CaptureCard({ 
+  capture,
+  onDelete
+}: { 
+  capture: Capture,
+  onDelete: (id: string) => void
+}) {
+  const handleOpen = () => {
+    window.ipcRenderer.invoke('open-capture', capture.id)
+  }
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onDelete(capture.id)
+  }
+
   return (
-    <div className="group relative overflow-hidden rounded-md bg-muted/10 border border-border/40 transition-all shadow-sm cursor-pointer">
+    <div 
+      onClick={handleOpen}
+      className="group relative overflow-hidden rounded-md bg-muted/10 border border-border/40 transition-all shadow-sm cursor-pointer"
+    >
       <img 
         src={capture.url} 
         alt={capture.name} 
@@ -51,9 +71,17 @@ function CaptureCard({ capture }: { capture: Capture }) {
           {new Date(capture.timestamp).toLocaleString()}
         </p>
       </div>
+
+      <button 
+        onClick={handleDelete}
+        className="absolute top-1.5 right-1.5 p-1.5 rounded bg-black/40 text-white/70 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white"
+      >
+        <Trash2 className="w-3 h-3" />
+      </button>
     </div>
   )
 }
+
 
 function CaptureGallery({ refreshKey }: { refreshKey: number }) {
   const [captures, setCaptures] = useState<Capture[]>([])
@@ -92,13 +120,24 @@ function CaptureGallery({ refreshKey }: { refreshKey: number }) {
     columns[i % columnCount].push(cap)
   })
 
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await window.ipcRenderer.invoke('delete-capture', id)
+      if (res.success) {
+        setCaptures(prev => prev.filter(c => c.id !== id))
+      }
+    } catch (err) {
+      console.error('Failed to delete:', err)
+    }
+  }
+
   return (
     <div className="flex-1 p-2 overflow-y-auto no-scrollbar">
       <div className="flex gap-3 items-start">
         {columns.map((col, i) => (
           <div key={i} className="flex-1 flex flex-col gap-3">
             {col.map((cap) => (
-              <CaptureCard key={cap.id} capture={cap} />
+              <CaptureCard key={cap.id} capture={cap} onDelete={handleDelete} />
             ))}
           </div>
         ))}
@@ -106,6 +145,7 @@ function CaptureGallery({ refreshKey }: { refreshKey: number }) {
     </div>
   )
 }
+
 
 function App() {
   const [refreshKey, setRefreshKey] = useState(0)
