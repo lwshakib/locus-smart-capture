@@ -4,6 +4,7 @@ import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, protocol, net, de
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
+import { execSync } from 'node:child_process'
 
 // Register custom protocol as privileged before app is ready
 protocol.registerSchemesAsPrivileged([
@@ -219,6 +220,111 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle('get-window-bounds', async () => {
+    if (process.platform !== 'win32') return []
+
+    const scriptPath = path.join(app.getPath('userData'), 'get-windows.ps1')
+    const psScript = `
+      Add-Type -TypeDefinition '
+        using System;
+        using System.Runtime.InteropServices;
+        using System.Collections.Generic;
+        using System.Text;
+
+        public class WindowUtils {
+          [DllImport("user32.dll")]
+          [return: MarshalAs(UnmanagedType.Bool)]
+          public static extern bool IsWindowVisible(IntPtr hWnd);
+
+          [DllImport("user32.dll")]
+          [return: MarshalAs(UnmanagedType.Bool)]
+          public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+          [DllImport("user32.dll", CharSet = CharSet.Auto)]
+          public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+          [DllImport("user32.dll")]
+          public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+          public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+          [DllImport("user32.dll")]
+          public static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
+
+          public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+
+          public static string GetWindows() {
+            var windows = new List<string>();
+            EnumWindows((hWnd, lParam) => {
+              if (IsWindowVisible(hWnd)) {
+                RECT rect;
+                if (GetWindowRect(hWnd, out rect)) {
+                  if (rect.Right > rect.Left && rect.Bottom > rect.Top) {
+                    var sb = new StringBuilder(256);
+                    GetWindowText(hWnd, sb, 256);
+                    string title = sb.ToString();
+                    
+                    uint pid;
+                    GetWindowThreadProcessId(hWnd, out pid);
+                    string procName = "Unknown";
+                    try { procName = System.Diagnostics.Process.GetProcessById((int)pid).ProcessName; } catch {}
+
+                    if (!string.IsNullOrEmpty(title)) {
+                      windows.Add(procName + "|" + title + "|" + rect.Left + "|" + rect.Top + "|" + (rect.Right - rect.Left) + "|" + (rect.Bottom - rect.Top));
+                    }
+                  }
+                }
+              }
+              return true;
+            }, IntPtr.Zero);
+            return string.Join(";", windows);
+          }
+        }
+      '; [WindowUtils]::GetWindows()
+    `
+
+    try {
+      // Ensure the script file exists
+      if (!fs.existsSync(scriptPath) || fs.readFileSync(scriptPath, 'utf8') !== psScript) {
+        fs.writeFileSync(scriptPath, psScript, 'utf8')
+      }
+
+      const output = execSync(`powershell -ExecutionPolicy Bypass -File "${scriptPath}"`, { encoding: 'utf8' })
+      const primaryDisplay = screen.getPrimaryDisplay()
+      const scaleFactor = primaryDisplay.scaleFactor
+
+      const windows = output.trim().split(';').filter(line => line.includes('|')).map(line => {
+        const parts = line.split('|')
+        if (parts.length < 6) return null
+        
+        const processName = parts[0]
+        const title = parts[1]
+        const x = parseInt(parts[2])
+        const y = parseInt(parts[3])
+        const width = parseInt(parts[4])
+        const height = parseInt(parts[5])
+
+        return { 
+          process: processName, 
+          title, 
+          x: Math.round(x / scaleFactor) - primaryDisplay.bounds.x, 
+          y: Math.round(y / scaleFactor) - primaryDisplay.bounds.y, 
+          width: Math.round(width / scaleFactor), 
+          height: Math.round(height / scaleFactor) 
+        }
+      }).filter((w): w is NonNullable<typeof w> => w !== null)
+      
+      return windows.filter(w => 
+        w.title && 
+        w.process !== 'Locus - Smart Capture' && 
+        w.width > 10 && w.height > 10
+      )
+    } catch (err) {
+      console.error('Failed to get window bounds:', err)
+      return []
+    }
+  })
+
   ipcMain.handle('get-windows', async () => {
     try {
       const sources = await desktopCapturer.getSources({ 
@@ -317,7 +423,7 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('open-region-selector', () => {
+  ipcMain.handle('open-region-selector', (_, mode: 'manual' | 'auto' = 'manual') => {
     if (win) win.hide()
     
     const primaryDisplay = screen.getPrimaryDisplay()
@@ -344,10 +450,11 @@ app.whenReady().then(() => {
       },
     })
 
+    const hash = `region-${mode}`
     if (VITE_DEV_SERVER_URL) {
-      regionWin.loadURL(VITE_DEV_SERVER_URL + '#region')
+      regionWin.loadURL(`${VITE_DEV_SERVER_URL}#${hash}`)
     } else {
-      regionWin.loadFile(path.join(RENDERER_DIST, 'index.html'), { hash: 'region' })
+      regionWin.loadFile(path.join(RENDERER_DIST, 'index.html'), { hash })
     }
 
     regionWin.on('closed', () => {

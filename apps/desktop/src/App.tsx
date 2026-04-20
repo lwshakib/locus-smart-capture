@@ -265,11 +265,33 @@ function MonitorSelector({ onSelect }: { onSelect: (index: number) => void }) {
 
 
 
-function RegionSelectorOverlay() {
+type WindowBound = {
+  process: string
+  title: string
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+function RegionSelectorOverlay({ mode }: { mode: 'manual' | 'auto' }) {
   const [startPos, setStartPos] = useState<{ x: number, y: number } | null>(null)
   const [currentPos, setCurrentPos] = useState<{ x: number, y: number } | null>(null)
+  const [windowBounds, setWindowBounds] = useState<WindowBound[]>([])
+  const [hoveredWindow, setHoveredWindow] = useState<WindowBound | null>(null)
+  const [mousePos, setMousePos] = useState<{ x: number, y: number }>({ x: 0, y: 0 })
 
   useEffect(() => {
+    const fetchBounds = async () => {
+      try {
+        const bounds = await window.ipcRenderer.invoke('get-window-bounds')
+        setWindowBounds(bounds)
+      } catch (err) {
+        console.error('Failed to fetch window bounds:', err)
+      }
+    }
+    fetchBounds()
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         window.ipcRenderer.invoke('cancel-region-selector')
@@ -286,6 +308,25 @@ function RegionSelectorOverlay() {
       document.body.style.backgroundColor = ''
     }
   }, [])
+  
+  useEffect(() => {
+    if (mode === 'auto' && !startPos && windowBounds.length > 0) {
+      // Find windows containing mouse pos, then pick the smallest one (most specific)
+      const matches = windowBounds.filter(b => 
+        mousePos.x >= b.x && mousePos.x <= b.x + b.width &&
+        mousePos.y >= b.y && mousePos.y <= b.y + b.height
+      )
+      
+      if (matches.length > 0) {
+        const smallest = matches.sort((a, b) => (a.width * a.height) - (b.width * b.height))[0]
+        setHoveredWindow(smallest)
+      } else {
+        setHoveredWindow(null)
+      }
+    } else {
+      setHoveredWindow(null)
+    }
+  }, [mousePos, windowBounds, startPos])
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setStartPos({ x: e.clientX, y: e.clientY })
@@ -293,6 +334,7 @@ function RegionSelectorOverlay() {
   }
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    setMousePos({ x: e.clientX, y: e.clientY })
     if (startPos) {
       setCurrentPos({ x: e.clientX, y: e.clientY })
     }
@@ -305,7 +347,14 @@ function RegionSelectorOverlay() {
       const width = Math.round(Math.abs(currentPos.x - startPos.x))
       const height = Math.round(Math.abs(currentPos.y - startPos.y))
 
-      if (width > 5 && height > 5) {
+      if (mode === 'auto' && width < 5 && height < 5 && hoveredWindow) {
+         window.ipcRenderer.invoke('capture-region', { 
+           x: hoveredWindow.x, 
+           y: hoveredWindow.y, 
+           width: hoveredWindow.width, 
+           height: hoveredWindow.height 
+         })
+      } else if (mode === 'manual' && width > 5 && height > 5) {
          window.ipcRenderer.invoke('capture-region', { x, y, width, height })
       } else {
          window.ipcRenderer.invoke('cancel-region-selector')
@@ -329,7 +378,7 @@ function RegionSelectorOverlay() {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >
-      {rect && (
+      {mode === 'manual' && rect ? (
         <div 
           className="absolute border-2 border-indigo-500 bg-indigo-500/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.3)]"
           style={{
@@ -339,21 +388,72 @@ function RegionSelectorOverlay() {
             height: rect.height
           }}
         />
+      ) : mode === 'auto' && hoveredWindow && (
+        <div 
+          className="absolute border-2 border-indigo-500 border-dashed bg-indigo-500/10 pointer-events-none"
+          style={{
+            left: hoveredWindow.x,
+            top: hoveredWindow.y,
+            width: hoveredWindow.width,
+            height: hoveredWindow.height,
+            zIndex: 100,
+          }}
+        >
+          <div className="absolute top-0 left-0 bg-indigo-500 text-white text-[9px] px-1.5 py-0.5 font-bold uppercase tracking-wider rounded-br shadow-lg">
+            {hoveredWindow.process}
+          </div>
+        </div>
       )}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md text-white px-3 py-1 rounded-full text-[10px] font-medium pointer-events-none">
-        Drag to select region • Esc to cancel
+        {mode === 'auto' ? 'Hover to select window • Esc to cancel' : 'Drag to select region • Esc to cancel'}
       </div>
+
+      {mode === 'auto' && (
+        <div className="absolute top-4 right-4 bg-black/80 backdrop-blur-md border border-white/10 rounded-lg p-2 text-[9px] font-mono text-zinc-400 pointer-events-none z-[10000]">
+          <div className="text-white font-bold mb-1 border-b border-white/10 pb-1 flex justify-between gap-4">
+            <span>DIAGNOSTICS</span>
+            <span className="text-emerald-500">LIVE</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span>Windows:</span>
+            <span className="text-white">{windowBounds.length}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span>Hovering:</span>
+            <span className={hoveredWindow ? "text-indigo-400" : "text-zinc-600"}>
+              {hoveredWindow ? hoveredWindow.process : 'None'}
+            </span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span>Mouse:</span>
+            <span className="text-white">{Math.round(mousePos.x)}, {Math.round(mousePos.y)}</span>
+          </div>
+          {hoveredWindow && (
+            <div className="mt-1 pt-1 border-t border-white/5 text-[8px] space-y-0.5">
+              <div className="flex justify-between gap-4 text-zinc-500">
+                <span>Target:</span>
+                <span className="text-zinc-300 truncate max-w-[80px]">{hoveredWindow.title}</span>
+              </div>
+              <div className="flex justify-between gap-4 text-zinc-500">
+                <span>Bounds:</span>
+                <span className="text-zinc-300">{hoveredWindow.x},{hoveredWindow.y} {hoveredWindow.width}×{hoveredWindow.height}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
 
 function App() {
-  const isRegionMode = window.location.hash === '#region'
+  const hash = window.location.hash
+  const isRegionManual = hash === '#region-manual'
+  const isRegionAuto = hash === '#region-auto'
 
-  if (isRegionMode) {
-    return <RegionSelectorOverlay />
-  }
+  if (isRegionManual) return <RegionSelectorOverlay mode="manual" />
+  if (isRegionAuto) return <RegionSelectorOverlay mode="auto" />
 
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -422,8 +522,8 @@ function App() {
     }
   }
 
-  const handleRegionCapture = () => {
-    window.ipcRenderer.invoke('open-region-selector')
+  const handleRegionCapture = (mode: 'manual' | 'auto') => {
+    window.ipcRenderer.invoke('open-region-selector', mode)
   }
 
   return (
@@ -460,7 +560,8 @@ function App() {
             )}
           </div>
 
-          <NavItem icon={Crop} label="Region" onClick={handleRegionCapture} />
+          <NavItem icon={Crop} label="Region" onClick={() => handleRegionCapture('manual')} />
+          <NavItem icon={Monitor} label="Auto Region" onClick={() => handleRegionCapture('auto')} />
 
 
         </aside>
