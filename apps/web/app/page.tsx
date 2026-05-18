@@ -69,12 +69,6 @@ export default function Page() {
             >
               Workflow
             </a>
-            <a
-              href="#location"
-              className="text-sm font-light tracking-wide text-zinc-500 transition-colors hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
-            >
-              Coordinates
-            </a>
             <Link
               href="/download"
               className="flex items-center gap-1 text-sm font-normal tracking-wide text-[#bfa0e0] transition-colors hover:text-zinc-950 dark:hover:text-white"
@@ -194,9 +188,9 @@ export default function Page() {
                   Instant workflow
                 </h3>
                 <p className="text-lg leading-relaxed font-light text-zinc-600 dark:text-zinc-400">
-                  Capture, annotate, and share in seconds. Integrated clipboard
-                  sync and cloud uploads keep your team in the loop without the
-                  friction.
+                  Capture and copy in seconds. Integrated clipboard
+                  synchronization saves screenshots instantly to your clipboard
+                  for painless pasting into any tool.
                 </p>
               </div>
 
@@ -215,11 +209,12 @@ export default function Page() {
               <div className="flex flex-col gap-4 border-t border-zinc-200 pt-6 dark:border-white/10">
                 <Network className="h-8 w-8 text-[#bfa0e0]" strokeWidth={1.5} />
                 <h3 className="text-xl font-normal tracking-tight md:text-2xl">
-                  Team sync
+                  Cross-platform
                 </h3>
                 <p className="text-lg leading-relaxed font-light text-zinc-600 dark:text-zinc-400">
-                  Organize captures into shared spaces. Collaborate with your
-                  team by adding context directly to every visual asset.
+                  Available natively on Windows, macOS, and Linux, with a
+                  lightweight, complementary Chrome Extension for perfect web
+                  browser element snapping.
                 </p>
               </div>
             </div>
@@ -306,16 +301,17 @@ export default function Page() {
                 <div className="flex flex-col gap-4 md:flex-row md:gap-12">
                   <div className="flex-shrink-0 md:w-32">
                     <span className="font-mono text-base tracking-widest text-zinc-400 transition-colors group-hover:text-zinc-950 dark:text-zinc-500 dark:group-hover:text-white">
-                      Sync
+                      Paste
                     </span>
                   </div>
                   <div>
                     <h3 className="text-xl font-normal tracking-tight md:text-2xl">
-                      Collaborate & export
+                      Paste & export
                     </h3>
                     <p className="mt-2 text-base font-light tracking-wide text-zinc-600 dark:text-zinc-400">
-                      Add notes and tags. Sync with your team workspace to keep
-                      everyone aligned on the vision.
+                      Paste your screenshots directly into Slack, Figma, Linear,
+                      Notion, or any editor instantly. No temporary files or
+                      crop cleanup needed.
                     </p>
                   </div>
                 </div>
@@ -354,131 +350,6 @@ export default function Page() {
                 </span>
               </div>
             </div>
-
-            {/* Side Quests / Gamification */}
-            <div className="relative mt-16 flex flex-col items-start justify-between gap-8 overflow-hidden border border-[#bfa0e0]/30 bg-[#bfa0e0]/5 p-8 md:flex-row md:items-center md:p-12">
-              {/* Tech accent */}
-              <div className="absolute top-0 right-0 h-32 w-32 bg-[#bfa0e0] opacity-10 blur-3xl"></div>
-              <div className="absolute bottom-0 left-0 m-4 h-8 w-8 border-b-2 border-l-2 border-[#bfa0e0] opacity-50"></div>
-              <div className="absolute top-0 right-0 m-4 h-8 w-8 border-t-2 border-r-2 border-[#bfa0e0] opacity-50"></div>
-
-              <div className="relative z-10 max-w-xl">
-                <div className="mb-4 flex items-center gap-2">
-                  <Zap className="h-6 w-6 text-[#bfa0e0]" strokeWidth={1.5} />
-                  <span className="font-mono text-xs tracking-widest text-[#bfa0e0]">
-                    Power Up Activated
-                  </span>
-                </div>
-                <h3 className="mb-4 text-2xl font-normal tracking-tight md:text-3xl">
-                  Pro Features Available
-                </h3>
-                <p className="text-base leading-relaxed font-light text-zinc-600 dark:text-zinc-400">
-                  Upgrade to{" "}
-                  <strong className="font-normal text-zinc-900 dark:text-white">
-                    Locus Plus
-                  </strong>{" "}
-                  for unlimited cloud storage, team permissions, and advanced
-                  ocr capabilities.
-                </p>
-              </div>
-
-              <div className="relative z-10 flex-shrink-0">
-                <div className="relative flex h-24 w-24 items-center justify-center rounded-full border border-zinc-200 md:h-32 md:w-32 dark:border-white/20">
-                  <div className="absolute inset-0 animate-[spin_10s_linear_infinite] rounded-full border border-[#bfa0e0] border-t-transparent"></div>
-                  <span className="font-mono text-sm tracking-widest">
-                    Pro+
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 6. Location Section */}
-        <section
-          id="location"
-          className="border-b border-zinc-200 px-6 py-24 md:px-12 md:py-32 dark:border-white/10"
-        >
-          <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-24">
-            <div className="flex flex-col gap-8">
-              <h2 className="text-4xl font-normal tracking-tight md:text-6xl">
-                Global
-                <br />
-                <span className="text-zinc-500">access</span>
-              </h2>
-
-              <div className="space-y-6 border-l-2 border-zinc-200 pl-6 dark:border-white/10">
-                <div>
-                  <p className="mb-1 font-mono text-xs tracking-widest text-zinc-400 dark:text-zinc-500">
-                    Status
-                  </p>
-                  <p className="text-xl font-normal tracking-tight text-zinc-950 md:text-2xl dark:text-white">
-                    Online / Synchronized
-                  </p>
-                </div>
-                <div>
-                  <p className="mb-1 font-mono text-xs tracking-widest text-zinc-400 dark:text-zinc-500">
-                    Architecture
-                  </p>
-                  <p className="text-lg font-light tracking-wide text-zinc-600 dark:text-zinc-400">
-                    Decentralized storage
-                    <br />
-                    Edge network delivery
-                  </p>
-                </div>
-              </div>
-
-              <Link
-                href="/download"
-                className="mt-4 inline-flex items-center gap-2 text-sm font-normal tracking-widest text-[#bfa0e0] transition-colors hover:text-zinc-950 dark:hover:text-white"
-              >
-                <MapPin className="h-5 w-5" strokeWidth={1.5} />
-                Get your access key
-              </Link>
-            </div>
-
-            {/* Minimalist Map Placeholder */}
-            <div className="group relative aspect-square overflow-hidden border border-zinc-200 bg-zinc-50 md:aspect-video lg:aspect-square dark:border-white/10 dark:bg-zinc-950">
-              {/* Abstract grid representing map */}
-              <div
-                className="absolute inset-0 block dark:hidden"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px)",
-                  backgroundSize: "20px 20px",
-                }}
-              ></div>
-              <div
-                className="absolute inset-0 hidden dark:block"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)",
-                  backgroundSize: "20px 20px",
-                }}
-              ></div>
-
-              {/* Radar/Pulse effect */}
-              <div className="absolute top-1/2 left-1/2 h-32 w-32 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border border-[#bfa0e0]/30"></div>
-              <div className="absolute top-1/2 left-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#bfa0e0]/50"></div>
-
-              {/* Pin */}
-              <div className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center">
-                <div className="h-3 w-3 rounded-full bg-[#bfa0e0] shadow-[0_0_15px_#bfa0e0]"></div>
-                <div className="h-8 w-px bg-gradient-to-b from-[#bfa0e0] to-transparent"></div>
-              </div>
-
-              {/* Overlay text */}
-              <div className="absolute right-4 bottom-4 left-4 flex items-end justify-between">
-                <span className="font-mono text-xs tracking-widest text-zinc-400 dark:text-zinc-600">
-                  Locus: active
-                  <br />
-                  User: authorized
-                </span>
-                <div className="border border-zinc-200 bg-white/80 px-3 py-1 font-mono text-xs tracking-widest text-zinc-900 backdrop-blur dark:border-white/10 dark:bg-black/80 dark:text-white">
-                  sys.dat
-                </div>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -503,8 +374,8 @@ export default function Page() {
             </h2>
 
             <p className="mt-4 max-w-2xl text-lg font-normal tracking-tight text-zinc-800 md:text-2xl">
-              Experience the next level of visual collaboration. Free for
-              individuals. Powerful for teams.
+              Experience the next level of offline-first, pixel-perfect visual
+              capture and clipboard pasting. Free and offline.
             </p>
 
             <Link

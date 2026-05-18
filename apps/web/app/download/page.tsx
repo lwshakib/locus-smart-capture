@@ -166,9 +166,9 @@ export default function DownloadPage() {
                     </span>
                   </div>
                   <div className="flex flex-col items-center gap-2">
-                    <Globe className="h-4 w-4" />
+                    <ShieldCheck className="h-4 w-4" />
                     <span className="font-mono text-[9px] tracking-widest">
-                      Cloud Enabled
+                      Offline First
                     </span>
                   </div>
                 </div>
