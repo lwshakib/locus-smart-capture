@@ -3,6 +3,16 @@ import path from 'node:path'
 import electron from 'vite-plugin-electron/simple'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { builtinModules } from 'node:module'
+import fs from 'node:fs'
+
+const pkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf-8'))
+const externalDeps = [
+  'electron',
+  ...builtinModules,
+  ...builtinModules.map(m => `node:${m}`),
+  ...Object.keys(pkg.dependencies || {}),
+]
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -13,6 +23,17 @@ export default defineConfig({
       main: {
         // Shortcut of `build.lib.entry`.
         entry: 'electron/main.ts',
+        vite: {
+          build: {
+            rollupOptions: {
+              external: externalDeps,
+              output: {
+                format: 'esm',
+                entryFileNames: '[name].js',
+              },
+            },
+          },
+        },
       },
       preload: {
         // Shortcut of `build.rollupOptions.input`.
@@ -21,6 +42,7 @@ export default defineConfig({
         vite: {
           build: {
             rollupOptions: {
+              external: externalDeps,
               output: {
                 format: 'cjs',
                 entryFileNames: '[name].js',
@@ -37,5 +59,5 @@ export default defineConfig({
         ? undefined
         : {},
     }),
-  ],
+  ] as any,
 })

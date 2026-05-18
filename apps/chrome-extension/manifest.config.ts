@@ -6,21 +6,32 @@ export default defineManifest({
   name: pkg.name,
   version: pkg.version,
   icons: {
-    48: 'public/logo.png',
+    16: 'public/icons/icon16.png',
+    32: 'public/icons/icon32.png',
+    48: 'public/icons/icon48.png',
+    128: 'public/icons/icon128.png',
   },
   action: {
     default_icon: {
-      48: 'public/logo.png',
+      16: 'public/icons/icon16.png',
+      32: 'public/icons/icon32.png',
+      48: 'public/icons/icon48.png',
+      128: 'public/icons/icon128.png',
     },
     default_popup: 'src/popup/index.html',
   },
   permissions: [
-    'sidePanel',
-    'contentSettings',
+    'activeTab',
+    'downloads',
+    'storage'
   ],
+  background: {
+    service_worker: 'src/background/index.ts',
+    type: 'module',
+  },
   content_scripts: [{
     js: ['src/content/main.tsx'],
-    matches: ['https://*/*'],
+    matches: ['http://*/*', 'https://*/*'],
   }],
   side_panel: {
     default_path: 'src/sidepanel/index.html',

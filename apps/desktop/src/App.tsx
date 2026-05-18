@@ -273,15 +273,6 @@ function MonitorSelector({ onSelect }: { onSelect: (index: number) => void }) {
 
 
 
-type WindowBound = {
-  process: string
-  title: string
-  x: number
-  y: number
-  width: number
-  height: number
-}
-
 function RegionSelectorOverlay() {
   const startRef = useRef<{ x: number; y: number } | null>(null)
   const currentRef = useRef<{ x: number; y: number } | null>(null)

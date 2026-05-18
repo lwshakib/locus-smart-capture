@@ -1,11 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, protocol, desktopCapturer, screen, shell, globalShortcut } from 'electron'
+import updater from 'electron-updater'
+const { autoUpdater } = updater
 
 
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
 import { execSync } from 'node:child_process'
+
+app.name = 'Locus Smart Capture'
+app.setAppUserModelId('com.locus.smart-capture')
 
 // Register custom protocol as privileged before app is ready
 protocol.registerSchemesAsPrivileged([
@@ -69,6 +74,7 @@ function createWindow() {
     resizable: false,
     autoHideMenuBar: true,
     transparent: true,
+    show: false, // Prevents window from flashing and allows starting hidden
     icon: nativeImage.createFromPath(iconPath),
     webPreferences: {
       preload: preloadPath,
@@ -77,6 +83,14 @@ function createWindow() {
     },
   })
 
+  // Only show the window initially if we are NOT in hidden/startup mode
+  const isStartupHidden = process.argv.includes('--hidden') || process.argv.includes('--minimized')
+  if (!isStartupHidden) {
+    win.once('ready-to-show', () => {
+      win?.show()
+    })
+  }
+
   // Test active push message to Renderer-process.
   win.webContents.on('did-finish-load', () => {
     win?.webContents.send('main-process-message', (new Date).toLocaleString())
@@ -84,9 +98,40 @@ function createWindow() {
 
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL)
+    win.webContents.openDevTools({ mode: 'detach' })
   } else {
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }
+}
+
+function setupAutoUpdater() {
+  autoUpdater.autoDownload = true
+  autoUpdater.autoInstallOnAppQuit = true
+  autoUpdater.allowPrerelease = false
+
+  autoUpdater.on('update-available', (info) => {
+    console.log('Update available:', info.version)
+    if (win) {
+      win.webContents.send('update:available', info.version)
+    }
+  })
+
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('Update downloaded:', info.version)
+    // Updates will be installed automatically on app quit
+  })
+
+  autoUpdater.on('error', (err) => {
+    console.error('Error in auto-updater:', err)
+  })
+
+  // Check for updates every 24 hours
+  setInterval(() => {
+    autoUpdater.checkForUpdatesAndNotify()
+  }, 1000 * 60 * 60 * 24)
+
+  // Initial check
+  autoUpdater.checkForUpdatesAndNotify()
 }
 
 app.on('window-all-closed', () => {
@@ -171,6 +216,165 @@ app.whenReady().then(() => {
       if (win) win.show()
     }
   }
+
+  async function captureWindowInternal(sourceId: string) {
+    try {
+      if (win) win.hide()
+      await new Promise(resolve => setTimeout(resolve, 200))
+
+      const sources = await desktopCapturer.getSources({
+        types: ['window'],
+        thumbnailSize: { width: 1920, height: 1080 }
+      })
+
+      const source = sources.find(s => s.id === sourceId)
+      if (!source) throw new Error('Target window not found')
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const filename = `locus_${timestamp}.png`
+      const filepath = path.join(CAP_FOLDER, filename)
+      
+      const image = source.thumbnail.toPNG()
+      fs.writeFileSync(filepath, image)
+      
+      win?.webContents.send('hotkey-capture')
+      
+      return { success: true, id: filename }
+    } catch (err) {
+      console.error('Window capture error:', err)
+      return { success: false, error: (err as any).message }
+    } finally {
+      if (win) win.show()
+    }
+  }
+
+  async function captureMonitorInternal(monitorIndex: number) {
+    try {
+      if (win) win.hide()
+      await new Promise(resolve => setTimeout(resolve, 200))
+
+      const sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: { width: 1920, height: 1080 }
+      })
+
+      // Try to match the monitor index
+      const source = sources[monitorIndex] || sources[0]
+      if (!source) throw new Error('Monitor source not found')
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const filename = `locus_${timestamp}.png`
+      const filepath = path.join(CAP_FOLDER, filename)
+      
+      const image = source.thumbnail.toPNG()
+      fs.writeFileSync(filepath, image)
+      
+      win?.webContents.send('hotkey-capture')
+      
+      return { success: true, id: filename }
+    } catch (err) {
+      console.error('Monitor capture error:', err)
+      return { success: false, error: (err as any).message }
+    } finally {
+      if (win) win.show()
+    }
+  }
+
+  function openRegionSelectorInternal() {
+    if (win) win.hide()
+    
+    if (regionWin) {
+      const primaryDisplay = screen.getPrimaryDisplay()
+      const { width, height } = primaryDisplay.bounds
+
+      // Handle screen size changes dynamically before showing
+      regionWin.setBounds({
+        x: primaryDisplay.bounds.x,
+        y: primaryDisplay.bounds.y,
+        width,
+        height
+      })
+
+      // Send the reset and bounds fetch triggers via IPC
+      regionWin.webContents.send('prepare-selector', 'manual')
+
+      // Set the hash without triggering a full page reload
+      regionWin.webContents.executeJavaScript('window.location.hash = "#region-manual"')
+      
+      // Allow a brief 40ms pause for the renderer to process reset events and paint a clean backing store
+      setTimeout(() => {
+        if (regionWin) regionWin.show()
+      }, 40)
+    }
+  }
+
+  async function updateTrayMenu() {
+    try {
+      // 1. Get connected monitors
+      const displays = screen.getAllDisplays()
+      const monitorSubmenu = displays.map((d, index) => ({
+        label: `Monitor ${index + 1} (${d.size.width}x${d.size.height})${d.id === screen.getPrimaryDisplay().id ? ' [Primary]' : ''}`,
+        click: async () => {
+          try {
+            await captureMonitorInternal(index)
+          } catch (err) {
+            console.error('Tray monitor capture error:', err)
+          }
+        }
+      }))
+
+      // 2. Get active windows
+      const sources = await desktopCapturer.getSources({ 
+        types: ['window'],
+        thumbnailSize: { width: 1, height: 1 } // Keeps it super fast
+      })
+      const activeWindows = sources.filter(s => s.name && s.name !== 'Locus - Smart Capture' && s.name !== 'Electron' && s.name !== 'Notification')
+      const windowSubmenu = activeWindows.map(s => ({
+        label: s.name.length > 40 ? s.name.substring(0, 37) + '...' : s.name,
+        click: async () => {
+          try {
+            await captureWindowInternal(s.id)
+          } catch (err) {
+            console.error('Tray window capture error:', err)
+          }
+        }
+      }))
+
+      const contextMenu = Menu.buildFromTemplate([
+        { label: 'Locus - Smart Capture', enabled: false },
+        { label: 'Show Dashboard', click: () => { win?.show(); win?.focus() } },
+        { type: 'separator' },
+        { 
+          label: 'Full Screen', 
+          accelerator: 'Alt+Shift+S',
+          click: async () => {
+            await performCaptureFullScreen()
+          } 
+        },
+        { 
+          label: 'Capture Window', 
+          submenu: windowSubmenu.length > 0 ? windowSubmenu : [{ label: 'No Active Windows', enabled: false }] 
+        },
+        { 
+          label: 'Capture Monitor', 
+          submenu: monitorSubmenu.length > 0 ? monitorSubmenu : [{ label: 'No Connected Monitors', enabled: false }] 
+        },
+        { 
+          label: 'Capture Region', 
+          click: () => {
+            openRegionSelectorInternal()
+          } 
+        },
+        { type: 'separator' },
+        { label: 'Quit', click: () => { app.quit() } }
+      ])
+
+      tray?.setContextMenu(contextMenu)
+    } catch (err) {
+      console.error('Failed to update tray menu:', err)
+    }
+  }
+
 
 
   ipcMain.handle('get-captures', async () => {
@@ -346,34 +550,7 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('capture-window', async (_, sourceId: string) => {
-    try {
-      if (win) win.hide()
-      await new Promise(resolve => setTimeout(resolve, 200))
-
-      const sources = await desktopCapturer.getSources({
-        types: ['window'],
-        thumbnailSize: { width: 1920, height: 1080 }
-      })
-
-      const source = sources.find(s => s.id === sourceId)
-      if (!source) throw new Error('Target window not found')
-
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-      const filename = `locus_${timestamp}.png`
-      const filepath = path.join(CAP_FOLDER, filename)
-      
-      const image = source.thumbnail.toPNG()
-      fs.writeFileSync(filepath, image)
-      
-      win?.webContents.send('hotkey-capture')
-      
-      return { success: true, id: filename }
-    } catch (err) {
-      console.error('Window capture error:', err)
-      return { success: false, error: (err as any).message }
-    } finally {
-      if (win) win.show()
-    }
+    return await captureWindowInternal(sourceId)
   })
 
   ipcMain.handle('get-monitors', async () => {
@@ -393,63 +570,11 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('capture-monitor', async (_, monitorIndex: number) => {
-    try {
-      if (win) win.hide()
-      await new Promise(resolve => setTimeout(resolve, 200))
-
-      const sources = await desktopCapturer.getSources({
-        types: ['screen'],
-        thumbnailSize: { width: 1920, height: 1080 }
-      })
-
-      // Try to match the monitor index
-      const source = sources[monitorIndex] || sources[0]
-      if (!source) throw new Error('Monitor source not found')
-
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-      const filename = `locus_${timestamp}.png`
-      const filepath = path.join(CAP_FOLDER, filename)
-      
-      const image = source.thumbnail.toPNG()
-      fs.writeFileSync(filepath, image)
-      
-      win?.webContents.send('hotkey-capture')
-      
-      return { success: true, id: filename }
-    } catch (err) {
-      console.error('Monitor capture error:', err)
-      return { success: false, error: (err as any).message }
-    } finally {
-      if (win) win.show()
-    }
+    return await captureMonitorInternal(monitorIndex)
   })
 
   ipcMain.handle('open-region-selector', () => {
-    if (win) win.hide()
-    
-    if (regionWin) {
-      const primaryDisplay = screen.getPrimaryDisplay()
-      const { width, height } = primaryDisplay.bounds
-
-      // Handle screen size changes dynamically before showing
-      regionWin.setBounds({
-        x: primaryDisplay.bounds.x,
-        y: primaryDisplay.bounds.y,
-        width,
-        height
-      })
-
-      // Send the reset and bounds fetch triggers via IPC
-      regionWin.webContents.send('prepare-selector', 'manual')
-
-      // Set the hash without triggering a full page reload
-      regionWin.webContents.executeJavaScript('window.location.hash = "#region-manual"')
-      
-      // Allow a brief 40ms pause for the renderer to process reset events and paint a clean backing store
-      setTimeout(() => {
-        if (regionWin) regionWin.show()
-      }, 40)
-    }
+    openRegionSelectorInternal()
   })
 
   ipcMain.handle('cancel-region-selector', () => {
@@ -586,14 +711,43 @@ app.whenReady().then(() => {
 
   // Initialize System Tray
   tray = new Tray(iconPath)
-  const contextMenu = Menu.buildFromTemplate([
-    { label: 'Show App', click: () => win?.show() },
-    { type: 'separator' },
-    { label: 'Quit', click: () => {
-        app.quit()
-      } 
-    }
-  ])
   tray.setToolTip('Locus - Smart Capture')
-  tray.setContextMenu(contextMenu)
+  
+  // Populate the system tray context menu dynamically
+  updateTrayMenu()
+
+  // Re-populate the context menu when the user hovers over the tray icon so it remains perfectly fresh
+  tray.on('mouse-enter', () => {
+    updateTrayMenu()
+  })
+
+  // Quick left-click on the tray icon to toggle the dashboard show/hide
+  tray.on('click', () => {
+    if (win) {
+      if (win.isVisible() && win.isFocused()) {
+        win.hide()
+      } else {
+        win.show()
+        win.focus()
+      }
+    }
+  })
+
+  // Setup Auto-Updater
+  setupAutoUpdater()
+
+  // Enable start on startup in production (startup app)
+  if (app.isPackaged) {
+    app.setLoginItemSettings({
+      openAtLogin: true,
+      path: app.getPath('exe'),
+      args: ['--hidden']
+    })
+  } else {
+    // In dev, ensure it's disabled to avoid cluttering startup
+    app.setLoginItemSettings({
+      openAtLogin: false,
+      path: app.getPath('exe'),
+    })
+  }
 })

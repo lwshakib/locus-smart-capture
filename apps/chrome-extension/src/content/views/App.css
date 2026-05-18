@@ -1,56 +1,111 @@
-.popup-container {
+/* Locus Smart Capture - Content Overlay Styles */
+
+.locus-capture-root {
   position: fixed;
-  right: 0;
-  bottom: 0;
-  margin: 1.25rem;
-  z-index: 100;
-  display: flex;
-  align-items: flex-end;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2147483640; /* Sit absolute top above all page elements */
+  pointer-events: auto;
   user-select: none;
-  line-height: 1em;
+  overflow: hidden;
 }
 
-.popup-content {
-  background-color: white;
-  color: #1f2937;
-  border-radius: 0.5rem;
-  box-shadow:
-    0 4px 6px -1px rgb(0 0 0 / 0.1),
-    0 2px 4px -2px rgb(0 0 0 / 0.1);
-  width: max-content;
-  height: min-content;
-  padding: 0.5rem 1rem;
-  margin: auto 0.5rem 0 0;
-  transition: opacity 300ms;
+.cursor-crosshair {
+  cursor: crosshair !important;
 }
 
-.toggle-button {
-  display: flex;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
+.cursor-default {
+  cursor: default !important;
+}
+
+/* Translucent dark overlay with box-shadow crop hole */
+.locus-overlay-mask {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.locus-crop-box {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px solid #6366f1; /* Beautiful premium Indigo border */
+  /* Elegant trick: huge box shadow creates the perfect dark masking outside the cropped box! */
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  background-color: transparent;
+}
+
+/* Guide banner overlay at the top */
+.locus-guide-tooltip {
+  position: fixed;
+  top: 16px;
+  left: 54%;
+  transform: translateX(-50%);
+  background-color: rgba(15, 15, 15, 0.9);
+  color: #f4f4f5;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  padding: 6px 14px;
   border-radius: 9999px;
-  box-shadow:
-    0 1px 3px 0 rgb(0 0 0 / 0.1),
-    0 1px 2px -1px rgb(0 0 0 / 0.1);
-  cursor: pointer;
-  border: none;
-  background-color: #288cd7;
+  font-size: 10.5px;
+  font-weight: 500;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: 0.2px;
+  z-index: 2147483647;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
-.toggle-button:hover {
-  background-color: #1e6aa3;
+/* Element selector dynamic highlight */
+.locus-element-highlight {
+  position: fixed;
+  pointer-events: none;
+  box-sizing: border-box;
+  border: 2px dashed #6366f1;
+  background-color: rgba(99, 102, 241, 0.08);
+  border-radius: 4px;
+  z-index: 2147483644;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.25); /* Subtle dark focus mask for selected element */
+  transition: all 60ms cubic-bezier(0.16, 1, 0.3, 1); /* Ultra-responsive transitions */
 }
 
-.button-icon {
-  padding: 4px;
+/* DevTools style hover dimensions tag bubble */
+.locus-element-tooltip {
+  position: fixed;
+  pointer-events: none;
+  background-color: rgba(9, 9, 11, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  color: #e4e4e7;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  z-index: 2147483646;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
 }
 
-.opacity-100 {
-  opacity: 1;
+.locus-tag {
+  color: #c084fc; /* Purple tag name */
+  font-weight: 600;
 }
 
-.opacity-0 {
-  opacity: 0;
+.locus-class {
+  color: #38bdf8; /* Blue class names */
+}
+
+.locus-dim {
+  color: #a1a1aa;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  padding-left: 6px;
 }
