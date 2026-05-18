@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, protocol, desktopCapturer, screen, shell, globalShortcut } from 'electron'
 
 
@@ -424,49 +424,37 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('open-region-selector', (_, mode: 'manual' | 'auto' = 'manual') => {
+  ipcMain.handle('open-region-selector', () => {
     if (win) win.hide()
     
-    const primaryDisplay = screen.getPrimaryDisplay()
-    const { width, height } = primaryDisplay.bounds
+    if (regionWin) {
+      const primaryDisplay = screen.getPrimaryDisplay()
+      const { width, height } = primaryDisplay.bounds
 
-    regionWin = new BrowserWindow({
-      width,
-      height,
-      x: primaryDisplay.bounds.x,
-      y: primaryDisplay.bounds.y,
-      transparent: true,
-      frame: false,
-      alwaysOnTop: true,
-      resizable: false,
-      movable: false,
-      fullscreen: process.platform !== 'darwin',
-      skipTaskbar: true,
-      enableLargerThanScreen: true,
-      backgroundColor: '#00000000',
-      webPreferences: {
-        preload: path.join(__dirname, 'preload.js'),
-        sandbox: true,
-        contextIsolation: true,
-      },
-    })
+      // Handle screen size changes dynamically before showing
+      regionWin.setBounds({
+        x: primaryDisplay.bounds.x,
+        y: primaryDisplay.bounds.y,
+        width,
+        height
+      })
 
-    const hash = `region-${mode}`
-    if (VITE_DEV_SERVER_URL) {
-      regionWin.loadURL(`${VITE_DEV_SERVER_URL}#${hash}`)
-    } else {
-      regionWin.loadFile(path.join(RENDERER_DIST, 'index.html'), { hash })
+      // Send the reset and bounds fetch triggers via IPC
+      regionWin.webContents.send('prepare-selector', 'manual')
+
+      // Set the hash without triggering a full page reload
+      regionWin.webContents.executeJavaScript('window.location.hash = "#region-manual"')
+      
+      // Allow a brief 40ms pause for the renderer to process reset events and paint a clean backing store
+      setTimeout(() => {
+        if (regionWin) regionWin.show()
+      }, 40)
     }
-
-    regionWin.on('closed', () => {
-      regionWin = null
-    })
   })
 
   ipcMain.handle('cancel-region-selector', () => {
     if (regionWin) {
-      regionWin.close()
-      regionWin = null
+      regionWin.hide()
     }
     if (win) win.show()
   })
@@ -474,12 +462,11 @@ app.whenReady().then(() => {
   ipcMain.handle('capture-region', async (_, rect: { x: number, y: number, width: number, height: number }) => {
     try {
       if (regionWin) {
-        regionWin.close()
-        regionWin = null
+        regionWin.hide()
       }
 
-      // Delay until the transparent overlay is fully torn down before grabbing the screen
-      await new Promise(resolve => setTimeout(resolve, process.platform === 'win32' ? 200 : 120))
+      // Delay briefly for hardware transition before capturing
+      await new Promise(resolve => setTimeout(resolve, process.platform === 'win32' ? 80 : 50))
 
       const primaryDisplay = screen.getPrimaryDisplay()
       const sources = await desktopCapturer.getSources({
@@ -563,6 +550,39 @@ app.whenReady().then(() => {
 
   Menu.setApplicationMenu(null)
   createWindow()
+
+  // Pre-initialize and load the hidden region selection overlay
+  const preloadPath = path.join(__dirname, 'preload.js')
+  const primaryDisplay = screen.getPrimaryDisplay()
+  const { width, height } = primaryDisplay.bounds
+
+  regionWin = new BrowserWindow({
+    width,
+    height,
+    x: primaryDisplay.bounds.x,
+    y: primaryDisplay.bounds.y,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: false,
+    movable: false,
+    show: false, // Keep hidden until explicitly triggered
+    fullscreen: process.platform !== 'darwin',
+    skipTaskbar: true,
+    enableLargerThanScreen: true,
+    backgroundColor: '#00000000',
+    webPreferences: {
+      preload: preloadPath,
+      sandbox: true,
+      contextIsolation: true,
+    },
+  })
+
+  if (VITE_DEV_SERVER_URL) {
+    regionWin.loadURL(`${VITE_DEV_SERVER_URL}#region-manual`)
+  } else {
+    regionWin.loadFile(path.join(RENDERER_DIST, 'index.html'), { hash: 'region-manual' })
+  }
 
   // Initialize System Tray
   tray = new Tray(iconPath)

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { cn } from "@workspace/ui/lib/utils"
 import { Kbd } from "@workspace/ui/components/kbd"
@@ -281,80 +282,100 @@ type WindowBound = {
   height: number
 }
 
-function RegionSelectorOverlay({ mode }: { mode: 'manual' | 'auto' }) {
+function RegionSelectorOverlay() {
   const startRef = useRef<{ x: number; y: number } | null>(null)
   const currentRef = useRef<{ x: number; y: number } | null>(null)
-  const dragRafRef = useRef<number | null>(null)
-  const mouseRafRef = useRef<number | null>(null)
-  const mousePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
-  const hoveredWindowRef = useRef<WindowBound | null>(null)
+  const pointerActiveRef = useRef(false)
 
-  const [dragRect, setDragRect] = useState<{
-    left: number
-    top: number
-    width: number
-    height: number
-  } | null>(null)
-  const [pointerActive, setPointerActive] = useState(false)
-  const [windowBounds, setWindowBounds] = useState<WindowBound[]>([])
-  const [hoveredWindow, setHoveredWindow] = useState<WindowBound | null>(null)
-  const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
-  hoveredWindowRef.current = hoveredWindow
-
-  const flushDragRect = useCallback(() => {
-    dragRafRef.current = null
-    const start = startRef.current
-    const current = currentRef.current
-    if (!start || !current) return
-    setDragRect({
-      left: Math.min(start.x, current.x),
-      top: Math.min(start.y, current.y),
-      width: Math.abs(current.x - start.x),
-      height: Math.abs(current.y - start.y),
-    })
-  }, [])
-
-  const scheduleDragRect = useCallback(() => {
-    if (dragRafRef.current != null) return
-    dragRafRef.current = requestAnimationFrame(flushDragRect)
-  }, [flushDragRect])
-
-  const flushMousePos = useCallback(() => {
-    mouseRafRef.current = null
-    const p = mousePosRef.current
-    setMousePos({ x: p.x, y: p.y })
-  }, [])
-
-  const scheduleMousePos = useCallback((x: number, y: number) => {
-    mousePosRef.current = { x, y }
-    if (mouseRafRef.current != null) return
-    mouseRafRef.current = requestAnimationFrame(flushMousePos)
-  }, [flushMousePos])
+  // Direct DOM references for lag-free rendering
+  const fullOverlayRef = useRef<HTMLDivElement>(null)
+  const topOverlayRef = useRef<HTMLDivElement>(null)
+  const bottomOverlayRef = useRef<HTMLDivElement>(null)
+  const leftOverlayRef = useRef<HTMLDivElement>(null)
+  const rightOverlayRef = useRef<HTMLDivElement>(null)
+  const borderRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const fetchBounds = async () => {
-      try {
-        const bounds = await window.ipcRenderer.invoke('get-window-bounds')
-        setWindowBounds(bounds)
-      } catch (err) {
-        console.error('Failed to fetch window bounds:', err)
-      }
-    }
-    fetchBounds()
-
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        // Instantly reset coordinates and border styles to prevent screen flashes on reopen
+        startRef.current = null
+        currentRef.current = null
+        pointerActiveRef.current = false
+
+        if (fullOverlayRef.current) fullOverlayRef.current.style.display = 'block'
+        if (topOverlayRef.current) {
+          topOverlayRef.current.style.display = 'none'
+          topOverlayRef.current.style.height = ''
+        }
+        if (bottomOverlayRef.current) {
+          bottomOverlayRef.current.style.display = 'none'
+          bottomOverlayRef.current.style.top = ''
+        }
+        if (leftOverlayRef.current) {
+          leftOverlayRef.current.style.display = 'none'
+          leftOverlayRef.current.style.top = ''
+          leftOverlayRef.current.style.height = ''
+          leftOverlayRef.current.style.width = ''
+        }
+        if (rightOverlayRef.current) {
+          rightOverlayRef.current.style.display = 'none'
+          rightOverlayRef.current.style.top = ''
+          rightOverlayRef.current.style.height = ''
+          rightOverlayRef.current.style.left = ''
+        }
+        if (borderRef.current) {
+          borderRef.current.style.display = 'none'
+          borderRef.current.style.left = ''
+          borderRef.current.style.top = ''
+          borderRef.current.style.width = ''
+          borderRef.current.style.height = ''
+        }
+
         window.ipcRenderer.invoke('cancel-region-selector')
       }
     }
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
 
-  useEffect(() => {
+    // Listen to prepare-selector reset signal for high-speed reuse
+    const cleanup = window.ipcRenderer.on('prepare-selector', () => {
+      startRef.current = null
+      currentRef.current = null
+      pointerActiveRef.current = false
+
+      if (fullOverlayRef.current) fullOverlayRef.current.style.display = 'block'
+      if (topOverlayRef.current) {
+        topOverlayRef.current.style.display = 'none'
+        topOverlayRef.current.style.height = ''
+      }
+      if (bottomOverlayRef.current) {
+        bottomOverlayRef.current.style.display = 'none'
+        bottomOverlayRef.current.style.top = ''
+      }
+      if (leftOverlayRef.current) {
+        leftOverlayRef.current.style.display = 'none'
+        leftOverlayRef.current.style.top = ''
+        leftOverlayRef.current.style.height = ''
+        leftOverlayRef.current.style.width = ''
+      }
+      if (rightOverlayRef.current) {
+        rightOverlayRef.current.style.display = 'none'
+        rightOverlayRef.current.style.top = ''
+        rightOverlayRef.current.style.height = ''
+        rightOverlayRef.current.style.left = ''
+      }
+      if (borderRef.current) {
+        borderRef.current.style.display = 'none'
+        borderRef.current.style.left = ''
+        borderRef.current.style.top = ''
+        borderRef.current.style.width = ''
+        borderRef.current.style.height = ''
+      }
+    })
+
     return () => {
-      if (dragRafRef.current != null) cancelAnimationFrame(dragRafRef.current)
-      if (mouseRafRef.current != null) cancelAnimationFrame(mouseRafRef.current)
+      window.removeEventListener('keydown', handleKeyDown)
+      if (typeof cleanup === 'function') cleanup()
     }
   }, [])
 
@@ -366,58 +387,36 @@ function RegionSelectorOverlay({ mode }: { mode: 'manual' | 'auto' }) {
     }
   }, [])
 
-  useEffect(() => {
-    if (mode === 'auto' && !pointerActive && windowBounds.length > 0) {
-      // Find windows containing mouse pos, then pick the smallest one (most specific)
-      const matches = windowBounds.filter(b =>
-        mousePos.x >= b.x && mousePos.x <= b.x + b.width &&
-        mousePos.y >= b.y && mousePos.y <= b.y + b.height
-      )
-
-      if (matches.length > 0) {
-        const smallest = matches.sort((a, b) => (a.width * a.height) - (b.width * b.height))[0]
-        setHoveredWindow(smallest)
-      } else {
-        setHoveredWindow(null)
-      }
-    } else {
-      setHoveredWindow(null)
-    }
-  }, [mousePos, windowBounds, mode, pointerActive])
-
   const endPointerDrag = useCallback(() => {
     const start = startRef.current
     const current = currentRef.current
     startRef.current = null
     currentRef.current = null
-    setPointerActive(false)
-    setDragRect(null)
-    if (dragRafRef.current != null) {
-      cancelAnimationFrame(dragRafRef.current)
-      dragRafRef.current = null
+    pointerActiveRef.current = false
+
+    // Reset direct DOM overlay styles
+    if (fullOverlayRef.current) {
+      fullOverlayRef.current.style.display = 'block'
     }
+    if (topOverlayRef.current) topOverlayRef.current.style.display = 'none'
+    if (bottomOverlayRef.current) bottomOverlayRef.current.style.display = 'none'
+    if (leftOverlayRef.current) leftOverlayRef.current.style.display = 'none'
+    if (rightOverlayRef.current) rightOverlayRef.current.style.display = 'none'
+    if (borderRef.current) borderRef.current.style.display = 'none'
 
     if (start && current) {
       const x = Math.round(Math.min(start.x, current.x))
       const y = Math.round(Math.min(start.y, current.y))
       const width = Math.round(Math.abs(current.x - start.x))
       const height = Math.round(Math.abs(current.y - start.y))
-      const hw = hoveredWindowRef.current
 
-      if (mode === 'auto' && width < 5 && height < 5 && hw) {
-        void window.ipcRenderer.invoke('capture-region', {
-          x: hw.x,
-          y: hw.y,
-          width: hw.width,
-          height: hw.height
-        })
-      } else if (mode === 'manual' && width > 5 && height > 5) {
+      if (width > 5 && height > 5) {
         void window.ipcRenderer.invoke('capture-region', { x, y, width, height })
       } else {
         void window.ipcRenderer.invoke('cancel-region-selector')
       }
     }
-  }, [mode])
+  }, [])
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return
@@ -430,17 +429,55 @@ function RegionSelectorOverlay({ mode }: { mode: 'manual' | 'auto' }) {
     }
     startRef.current = { x: e.clientX, y: e.clientY }
     currentRef.current = { x: e.clientX, y: e.clientY }
-    setPointerActive(true)
-    flushDragRect()
+    pointerActiveRef.current = true
   }
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (mode === 'auto') {
-      scheduleMousePos(e.clientX, e.clientY)
-    }
+    const x = e.clientX
+    const y = e.clientY
+
     if (startRef.current) {
-      currentRef.current = { x: e.clientX, y: e.clientY }
-      scheduleDragRect()
+      currentRef.current = { x, y }
+      
+      const start = startRef.current
+      const left = Math.min(start.x, x)
+      const top = Math.min(start.y, y)
+      const width = Math.abs(x - start.x)
+      const height = Math.abs(y - start.y)
+
+      // Hide the initial full-screen translucent overlay when active dragging begins
+      if (fullOverlayRef.current) {
+        fullOverlayRef.current.style.display = 'none'
+      }
+
+      // Reposition and display highly efficient viewport cutout overlays
+      if (topOverlayRef.current) {
+        topOverlayRef.current.style.display = 'block'
+        topOverlayRef.current.style.height = `${top}px`
+      }
+      if (bottomOverlayRef.current) {
+        bottomOverlayRef.current.style.display = 'block'
+        bottomOverlayRef.current.style.top = `${top + height}px`
+      }
+      if (leftOverlayRef.current) {
+        leftOverlayRef.current.style.display = 'block'
+        leftOverlayRef.current.style.top = `${top}px`
+        leftOverlayRef.current.style.height = `${height}px`
+        leftOverlayRef.current.style.width = `${left}px`
+      }
+      if (rightOverlayRef.current) {
+        rightOverlayRef.current.style.display = 'block'
+        rightOverlayRef.current.style.top = `${top}px`
+        rightOverlayRef.current.style.height = `${height}px`
+        rightOverlayRef.current.style.left = `${left + width}px`
+      }
+      if (borderRef.current) {
+        borderRef.current.style.display = 'block'
+        borderRef.current.style.left = `${left}px`
+        borderRef.current.style.top = `${top}px`
+        borderRef.current.style.width = `${width}px`
+        borderRef.current.style.height = `${height}px`
+      }
     }
   }
 
@@ -471,81 +508,41 @@ function RegionSelectorOverlay({ mode }: { mode: 'manual' | 'auto' }) {
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
     >
-      {mode === 'manual' && !dragRect && (
-        <div className="pointer-events-none absolute inset-0 bg-black/35" />
-      )}
+      {/* Full Screen Translucent Overlay (active before dragging) */}
+      <div ref={fullOverlayRef} className="pointer-events-none absolute inset-0 bg-black/35" />
 
-      {mode === 'manual' && dragRect && (
-        <div
-          className="pointer-events-none absolute box-border border-2 border-indigo-500"
-          style={{
-            left: dragRect.left,
-            top: dragRect.top,
-            width: dragRect.width,
-            height: dragRect.height,
-            boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.35)',
-          }}
-        />
-      )}
+      {/* 4 Viewport Cutout Overlays (active during dragging, surrounding the selection) */}
+      <div 
+        ref={topOverlayRef} 
+        className="pointer-events-none absolute bg-black/35 left-0 top-0 right-0" 
+        style={{ display: 'none' }} 
+      />
+      <div 
+        ref={bottomOverlayRef} 
+        className="pointer-events-none absolute bg-black/35 left-0 right-0 bottom-0" 
+        style={{ display: 'none' }} 
+      />
+      <div 
+        ref={leftOverlayRef} 
+        className="pointer-events-none absolute bg-black/35 left-0" 
+        style={{ display: 'none' }} 
+      />
+      <div 
+        ref={rightOverlayRef} 
+        className="pointer-events-none absolute bg-black/35 right-0" 
+        style={{ display: 'none' }} 
+      />
 
-      {mode === 'auto' && (
-        <div className="pointer-events-none absolute inset-0 bg-black/10" />
-      )}
+      {/* Active Selection Outline */}
+      <div
+        ref={borderRef}
+        className="pointer-events-none absolute box-border border-2 border-indigo-500"
+        style={{ display: 'none' }}
+      />
 
-      {mode === 'auto' && hoveredWindow && (
-        <div 
-          className="absolute border-2 border-indigo-500 border-dashed bg-indigo-500/10 pointer-events-none"
-          style={{
-            left: hoveredWindow.x,
-            top: hoveredWindow.y,
-            width: hoveredWindow.width,
-            height: hoveredWindow.height,
-            zIndex: 100,
-          }}
-        >
-          <div className="absolute top-0 left-0 bg-indigo-500 text-white text-[9px] px-1.5 py-0.5 font-bold uppercase tracking-wider rounded-br shadow-lg">
-            {hoveredWindow.process}
-          </div>
-        </div>
-      )}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md text-white px-3 py-1 rounded-full text-[10px] font-medium pointer-events-none">
-        {mode === 'auto' ? 'Hover to select window • Esc to cancel' : 'Drag to select region • Esc to cancel'}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md text-white px-3 py-1 rounded-full text-[10px] font-medium pointer-events-none select-none">
+        Drag to select region • Esc to cancel
       </div>
-
-      {mode === 'auto' && (
-        <div className="absolute top-4 right-4 bg-black/80 backdrop-blur-md border border-white/10 rounded-lg p-2 text-[9px] font-mono text-zinc-400 pointer-events-none z-[10000]">
-          <div className="text-white font-bold mb-1 border-b border-white/10 pb-1 flex justify-between gap-4">
-            <span>DIAGNOSTICS</span>
-            <span className="text-emerald-500">LIVE</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span>Windows:</span>
-            <span className="text-white">{windowBounds.length}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span>Hovering:</span>
-            <span className={hoveredWindow ? "text-indigo-400" : "text-zinc-600"}>
-              {hoveredWindow ? hoveredWindow.process : 'None'}
-            </span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span>Mouse:</span>
-            <span className="text-white">{Math.round(mousePos.x)}, {Math.round(mousePos.y)}</span>
-          </div>
-          {hoveredWindow && (
-            <div className="mt-1 pt-1 border-t border-white/5 text-[8px] space-y-0.5">
-              <div className="flex justify-between gap-4 text-zinc-500">
-                <span>Target:</span>
-                <span className="text-zinc-300 truncate max-w-[80px]">{hoveredWindow.title}</span>
-              </div>
-              <div className="flex justify-between gap-4 text-zinc-500">
-                <span>Bounds:</span>
-                <span className="text-zinc-300">{hoveredWindow.x},{hoveredWindow.y} {hoveredWindow.width}×{hoveredWindow.height}</span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }
@@ -582,14 +579,19 @@ function App() {
     }
   }, [])
 
-  const hash = window.location.hash
-  const isRegionManual = hash === '#region-manual'
-  const isRegionAuto = hash === '#region-auto'
+  const [currentHash, setCurrentHash] = useState(() => window.location.hash)
 
-  if (isRegionManual) return <RegionSelectorOverlay mode="manual" />
-  if (isRegionAuto) return <RegionSelectorOverlay mode="auto" />
+  useEffect(() => {
+    const handleHashChange = () => {
+      setCurrentHash(window.location.hash)
+    }
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
 
+  const isRegionManual = currentHash === '#region-manual'
 
+  if (isRegionManual) return <RegionSelectorOverlay />
 
   const handleCapture = async () => {
     setIsCapturing(true)
@@ -623,65 +625,60 @@ function App() {
     }
   }
 
-  const handleRegionCapture = (mode: 'manual' | 'auto') => {
-    window.ipcRenderer.invoke('open-region-selector', mode)
+  const handleRegionCapture = () => {
+    window.ipcRenderer.invoke('open-region-selector')
   }
 
   return (
-
-
     <main className="flex h-screen w-full bg-background text-foreground overflow-hidden select-none font-sans">
       {/* Left Pane (Minimal Actions) */}
       <aside className="w-[180px] bg-background flex flex-col p-2 space-y-1 transition-all duration-300">
-          <NavItem icon={Monitor} label="Full screen" shortcut="Alt+Shift+S" onClick={handleCapture} />
-          
-          <div 
-            className="relative"
-            onMouseEnter={() => setIsWindowSelectorOpen(true)}
-            onMouseLeave={() => setIsWindowSelectorOpen(false)}
-          >
-            <NavItem icon={Layout} label="Window" />
-            {isWindowSelectorOpen && (
-              <div className="absolute left-full top-0 ml-2 z-[100] border border-border/40 shadow-2xl bg-background/95 backdrop-blur-md rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150 origin-left">
-                <WindowSelector onSelect={handleWindowSelected} />
-              </div>
-            )}
-          </div>
-
-          <div 
-            className="relative"
-            onMouseEnter={() => setIsMonitorSelectorOpen(true)}
-            onMouseLeave={() => setIsMonitorSelectorOpen(false)}
-          >
-            <NavItem icon={MonitorDot} label="Monitor" />
-            {isMonitorSelectorOpen && (
-              <div className="absolute left-full top-0 ml-2 z-[100] border border-border/40 shadow-2xl bg-background/95 backdrop-blur-md rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150 origin-left">
-                <MonitorSelector onSelect={handleMonitorSelected} />
-              </div>
-            )}
-          </div>
-
-          <NavItem icon={Crop} label="Region" onClick={() => handleRegionCapture('manual')} />
-          <NavItem icon={Monitor} label="Auto Region" onClick={() => handleRegionCapture('auto')} />
-
-
-        </aside>
-
-        {/* Right Pane (Persistent Gallery) */}
-        <section className="flex-1 bg-background flex flex-col relative border-l border-border/20">
-          {isCapturing && (
-            <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-50 flex items-center justify-center">
-               <div className="flex flex-col items-center gap-2">
-                  <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                  <p className="text-[10px] font-medium animate-pulse">Capturing...</p>
-               </div>
+        <NavItem icon={Monitor} label="Full screen" shortcut="Alt+Shift+S" onClick={handleCapture} />
+        
+        <div 
+          className="relative"
+          onMouseEnter={() => setIsWindowSelectorOpen(true)}
+          onMouseLeave={() => setIsWindowSelectorOpen(false)}
+        >
+          <NavItem icon={Layout} label="Window" />
+          {isWindowSelectorOpen && (
+            <div className="absolute left-full top-0 ml-2 z-[100] border border-border/40 shadow-2xl bg-background/95 backdrop-blur-md rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150 origin-left">
+              <WindowSelector onSelect={handleWindowSelected} />
             </div>
           )}
+        </div>
 
-          <CaptureGallery refreshKey={refreshKey} />
-        </section>
-      </main>
-    )
+        <div 
+          className="relative"
+          onMouseEnter={() => setIsMonitorSelectorOpen(true)}
+          onMouseLeave={() => setIsMonitorSelectorOpen(false)}
+        >
+          <NavItem icon={MonitorDot} label="Monitor" />
+          {isMonitorSelectorOpen && (
+            <div className="absolute left-full top-0 ml-2 z-[100] border border-border/40 shadow-2xl bg-background/95 backdrop-blur-md rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150 origin-left">
+              <MonitorSelector onSelect={handleMonitorSelected} />
+            </div>
+          )}
+        </div>
+
+        <NavItem icon={Crop} label="Region" onClick={handleRegionCapture} />
+      </aside>
+
+      {/* Right Pane (Persistent Gallery) */}
+      <section className="flex-1 bg-background flex flex-col relative border-l border-border/20">
+        {isCapturing && (
+          <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-50 flex items-center justify-center">
+             <div className="flex flex-col items-center gap-2">
+                <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-[10px] font-medium animate-pulse">Capturing...</p>
+             </div>
+          </div>
+        )}
+
+        <CaptureGallery refreshKey={refreshKey} />
+      </section>
+    </main>
+  )
   }
 
 export default App
