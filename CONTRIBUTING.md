@@ -7,20 +7,26 @@ Welcome! We are excited that you want to contribute to **Locus Smart Capture**. 
 ## 🚀 Setting Up Your Workspace
 
 ### 1. Clone & Fork the Repository
+
 First, fork the repository on GitHub and clone your fork locally:
+
 ```bash
 git clone https://github.com/your-username/locus-smart-capture.git
 cd locus-smart-capture
 ```
 
 ### 2. Configure Remote Upstream
+
 Keep your local workspace in sync with the parent project:
+
 ```bash
 git remote add upstream https://github.com/lwshakib/locus-smart-capture.git
 ```
 
 ### 3. Install Workspace Dependencies
+
 Locus is a pnpm monorepo. Never use `npm` or `yarn` directly; always run **`pnpm`** to manage packages:
+
 ```bash
 pnpm install
 ```
@@ -30,7 +36,9 @@ pnpm install
 ## 🌿 Branching & Git Workflow
 
 ### 1. Create a Topic Branch
+
 Always develop inside a feature-specific branch. Base your branch off the `main` branch and use clean naming formats:
+
 ```bash
 # For bug fixes
 git checkout -b fix/issue-description
@@ -40,7 +48,9 @@ git checkout -b feature/cool-new-tool
 ```
 
 ### 2. Adding / Installing Dependencies
+
 If you need to install new npm packages in a specific app or shared package:
+
 ```bash
 # Add to apps/desktop workspace
 pnpm --filter desktop add <package-name>
@@ -59,13 +69,17 @@ pnpm --filter web add <package-name>
 Locus runs rigid validation gates on pull requests. Before committing your code, make sure it passes all linting, formatting, and type compilation checks:
 
 ### 1. Run Linter
+
 Checks code styles and formats:
+
 ```bash
 pnpm lint
 ```
 
 ### 2. Verify Type Safety
+
 Ensure TypeScript builds perfectly with zero compilation warnings:
+
 ```bash
 # For Desktop App
 pnpm --filter desktop exec tsc --noEmit
@@ -75,7 +89,9 @@ pnpm --filter chrome-extension exec tsc --noEmit
 ```
 
 ### 3. Verify Product Packaging
+
 Verify that build bundlers succeed for all platforms:
+
 ```bash
 pnpm build
 ```

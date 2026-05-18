@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { ipcRenderer, contextBridge } from 'electron'
+import { ipcRenderer, contextBridge } from "electron"
 
 // --------- Expose some API to the Renderer process ---------
-contextBridge.exposeInMainWorld('ipcRenderer', {
+contextBridge.exposeInMainWorld("ipcRenderer", {
   on(channel: string, listener: (event: any, ...args: any[]) => void) {
-    const wrappedListener = (event: any, ...args: any[]) => listener(event, ...args)
+    const wrappedListener = (event: any, ...args: any[]) =>
+      listener(event, ...args)
     ipcRenderer.on(channel, wrappedListener)
     return () => ipcRenderer.removeListener(channel, wrappedListener)
   },

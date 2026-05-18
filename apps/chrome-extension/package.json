@@ -2,6 +2,7 @@
   "name": "chrome-extension",
   "type": "module",
   "version": "1.0.0",
+  "description": "Smart, pixel-perfect screen and element capture tool.",
   "private": true,
   "scripts": {
     "dev": "vite",

@@ -1,39 +1,38 @@
-import { defineManifest } from '@crxjs/vite-plugin'
-import pkg from './package.json'
+import { defineManifest } from "@crxjs/vite-plugin"
+import pkg from "./package.json" with { type: "json" }
 
 export default defineManifest({
   manifest_version: 3,
-  name: pkg.name,
+  name: "Locus - Smart Capture",
+  description: "Smart, pixel-perfect screen and element capture tool.",
   version: pkg.version,
   icons: {
-    16: 'public/icons/icon16.png',
-    32: 'public/icons/icon32.png',
-    48: 'public/icons/icon48.png',
-    128: 'public/icons/icon128.png',
+    16: "public/icons/icon16.png",
+    32: "public/icons/icon32.png",
+    48: "public/icons/icon48.png",
+    128: "public/icons/icon128.png",
   },
   action: {
     default_icon: {
-      16: 'public/icons/icon16.png',
-      32: 'public/icons/icon32.png',
-      48: 'public/icons/icon48.png',
-      128: 'public/icons/icon128.png',
+      16: "public/icons/icon16.png",
+      32: "public/icons/icon32.png",
+      48: "public/icons/icon48.png",
+      128: "public/icons/icon128.png",
     },
-    default_popup: 'src/popup/index.html',
+    default_popup: "src/popup/index.html",
   },
-  permissions: [
-    'activeTab',
-    'downloads',
-    'storage'
-  ],
+  permissions: ["activeTab", "downloads", "storage"],
   background: {
-    service_worker: 'src/background/index.ts',
-    type: 'module',
+    service_worker: "src/background/index.ts",
+    type: "module",
   },
-  content_scripts: [{
-    js: ['src/content/main.tsx'],
-    matches: ['http://*/*', 'https://*/*'],
-  }],
+  content_scripts: [
+    {
+      js: ["src/content/main.tsx"],
+      matches: ["http://*/*", "https://*/*"],
+    },
+  ],
   side_panel: {
-    default_path: 'src/sidepanel/index.html',
+    default_path: "src/sidepanel/index.html",
   },
 })

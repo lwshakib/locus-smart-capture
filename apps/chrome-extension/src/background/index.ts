@@ -9,30 +9,40 @@ interface CropRect {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.action === 'capture-full-screen') {
-    // Capture the entire visible viewport
-    chrome.tabs.captureVisibleTab({ format: 'png' }, (dataUrl) => {
+  if (message.action === "capture-full-screen") {
+    chrome.tabs.captureVisibleTab({ format: "png" }, (dataUrl) => {
       if (chrome.runtime.lastError || !dataUrl) {
-        sendResponse({ success: false, error: chrome.runtime.lastError?.message || 'Capture failed' })
+        console.error(
+          "Capture visible tab failed:",
+          chrome.runtime.lastError?.message
+        )
+        sendResponse({
+          success: false,
+          error: chrome.runtime.lastError?.message || "Capture failed",
+        })
         return
       }
 
-      // Save and trigger download
-      saveAndDownload(dataUrl).then((saved) => {
-        sendResponse({ success: true, capture: saved })
-      }).catch(err => {
-        sendResponse({ success: false, error: err.message })
-      })
+      saveAndDownload(dataUrl)
+        .then((saved) => {
+          sendResponse({ success: true, capture: saved })
+        })
+        .catch((err) => {
+          sendResponse({ success: false, error: err.message })
+        })
     })
     return true // Keep channel open for asynchronous response
   }
 
-  if (message.action === 'capture-cropped-region') {
+  if (message.action === "capture-cropped-region") {
     const { rect }: { rect: CropRect } = message
 
-    chrome.tabs.captureVisibleTab({ format: 'png' }, (dataUrl) => {
+    chrome.tabs.captureVisibleTab({ format: "png" }, (dataUrl) => {
       if (chrome.runtime.lastError || !dataUrl) {
-        sendResponse({ success: false, error: chrome.runtime.lastError?.message || 'Capture failed' })
+        sendResponse({
+          success: false,
+          error: chrome.runtime.lastError?.message || "Capture failed",
+        })
         return
       }
 
@@ -43,7 +53,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           sendResponse({ success: true, capture: saved })
         })
         .catch((err) => {
-          console.error('Cropping error:', err)
+          console.error("Cropping error:", err)
           sendResponse({ success: false, error: err.message })
         })
     })
@@ -68,10 +78,10 @@ async function cropImage(dataUrl: string, rect: CropRect): Promise<string> {
   const targetHeight = Math.max(1, sHeight)
 
   const canvas = new OffscreenCanvas(targetWidth, targetHeight)
-  const ctx = canvas.getContext('2d')
+  const ctx = canvas.getContext("2d")
 
   if (!ctx) {
-    throw new Error('Could not establish 2D canvas context')
+    throw new Error("Could not establish 2D canvas context")
   }
 
   // Draw the precisely cropped portion onto our canvas
@@ -87,16 +97,16 @@ async function cropImage(dataUrl: string, rect: CropRect): Promise<string> {
     targetHeight
   )
 
-  const croppedBlob = await canvas.convertToBlob({ type: 'image/png' })
+  const croppedBlob = await canvas.convertToBlob({ type: "image/png" })
 
   // Convert cropped blob back to a clean Data URL in MV3 service worker
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onloadend = () => {
-      if (typeof reader.result === 'string') {
+      if (typeof reader.result === "string") {
         resolve(reader.result)
       } else {
-        reject(new Error('Conversion to Data URL failed'))
+        reject(new Error("Conversion to Data URL failed"))
       }
     }
     reader.onerror = () => reject(reader.error)
@@ -114,7 +124,7 @@ async function saveAndDownload(dataUrl: string) {
 
   // 1. Save to chrome.storage.local
   await new Promise<void>((resolve) => {
-    chrome.storage.local.get(['captures'], (result) => {
+    chrome.storage.local.get(["captures"], (result) => {
       const captures = (result.captures as any[]) || []
       chrome.storage.local.set(
         { captures: [newCapture, ...captures].slice(0, 50) },
@@ -129,7 +139,7 @@ async function saveAndDownload(dataUrl: string) {
       {
         url: dataUrl,
         filename: filename,
-        saveAs: false // Download silently to standard downloads directory
+        saveAs: false, // Download silently to standard downloads directory
       },
       () => {
         if (chrome.runtime.lastError) {

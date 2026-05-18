@@ -1,5 +1,9 @@
 /* Locus Smart Capture - Content Overlay Styles */
 
+#crxjs-app {
+  pointer-events: none !important; /* Guarantee that the React root container never intercepts mouse hit tests */
+}
+
 .locus-capture-root {
   position: fixed;
   left: 0;
@@ -7,9 +11,13 @@
   width: 100vw;
   height: 100vh;
   z-index: 2147483640; /* Sit absolute top above all page elements */
-  pointer-events: auto;
+  pointer-events: none; /* By default, let mouse events pass through to find page elements */
   user-select: none;
   overflow: hidden;
+}
+
+.locus-capture-root.mode-manual {
+  pointer-events: auto; /* Intercept mouse clicks and drags in manual crop mode */
 }
 
 .cursor-crosshair {
@@ -34,7 +42,7 @@
 .locus-crop-box {
   position: absolute;
   box-sizing: border-box;
-  border: 1.5px solid #6366f1; /* Beautiful premium Indigo border */
+  border: 1.5px solid #71717a; /* Neutral Zinc-500 border instead of Indigo */
   /* Elegant trick: huge box shadow creates the perfect dark masking outside the cropped box! */
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
   pointer-events: none;
@@ -56,24 +64,33 @@
   border-radius: 9999px;
   font-size: 10.5px;
   font-weight: 500;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
   letter-spacing: 0.2px;
   z-index: 2147483647;
   pointer-events: none;
   white-space: nowrap;
 }
 
-/* Element selector dynamic highlight */
+/* Element selector dynamic highlight - Premium High-Contrast Border */
 .locus-element-highlight {
   position: fixed;
   pointer-events: none;
   box-sizing: border-box;
-  border: 2px dashed #6366f1;
-  background-color: rgba(99, 102, 241, 0.08);
+  border: 2px solid #09090b; /* Deep black border */
+  box-shadow:
+    0 0 0 1px #ffffff,
+    0 4px 12px rgba(0, 0, 0, 0.25); /* White outer highlight glow and soft shadow */
+  background-color: rgba(9, 9, 11, 0.04); /* Premium soft tint */
   border-radius: 4px;
   z-index: 2147483644;
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.25); /* Subtle dark focus mask for selected element */
-  transition: all 60ms cubic-bezier(0.16, 1, 0.3, 1); /* Ultra-responsive transitions */
+  transition: all 80ms cubic-bezier(0.16, 1, 0.3, 1); /* Ultra-smooth and snappy transitions */
 }
 
 /* DevTools style hover dimensions tag bubble */

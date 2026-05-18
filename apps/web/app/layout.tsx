@@ -2,7 +2,7 @@ import { Space_Grotesk } from "next/font/google"
 
 import "@workspace/ui/globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { cn } from "@workspace/ui/lib/utils";
+import { cn } from "@workspace/ui/lib/utils"
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -20,7 +20,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn("antialiased", spaceGrotesk.variable)}
     >
-      <body className="font-space bg-black text-white antialiased selection:bg-[#bfa0e0] selection:text-white relative overflow-x-hidden">
+      <body className="font-space relative overflow-x-hidden bg-black text-white antialiased selection:bg-[#bfa0e0] selection:text-white">
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

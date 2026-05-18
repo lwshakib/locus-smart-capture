@@ -1,63 +1,54 @@
 // @see - https://www.electron.build/configuration/configuration
 {
-  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "com.locus.smart-capture",
-  "productName": "Locus Smart Capture",
-  "copyright": "Copyright © 2026 Locus Smart Capture",
-  "asar": true,
-  "npmRebuild": false,
-  "files": [
-    "dist",
-    "dist-electron"
-  ],
-  "directories": {
-    "output": "release/${version}",
-    "buildResources": "public"
+  $schema: "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  appId: "com.locus.smart-capture",
+  productName: "Locus Smart Capture",
+  copyright: "Copyright © 2026 Locus Smart Capture",
+  asar: true,
+  npmRebuild: false,
+  files: ["dist", "dist-electron"],
+  directories: {
+    output: "release/${version}",
+    buildResources: "public",
   },
-  "mac": {
-    "icon": "public/icons/mac/icon.icns",
-    "category": "public.app-category.utilities",
-    "target": [
-      "dmg"
-    ],
-    "artifactName": "${productName}-Mac-${version}.${ext}"
+  mac: {
+    icon: "public/icons/mac/icon.icns",
+    category: "public.app-category.utilities",
+    target: ["dmg"],
+    artifactName: "${productName}-Mac-${version}.${ext}",
   },
-  "win": {
-    "publisherName": "Shakib Khan",
-    "icon": "public/icons/win/icon.ico",
-    "target": [
+  win: {
+    publisherName: "Shakib Khan",
+    icon: "public/icons/win/icon.ico",
+    target: [
       {
-        "target": "nsis",
-        "arch": [
-          "x64"
-        ]
-      }
+        target: "nsis",
+        arch: ["x64"],
+      },
     ],
-    "artifactName": "${productName}-Windows-${version}-Setup.${ext}"
+    artifactName: "${productName}-Windows-${version}-Setup.${ext}",
   },
-  "nsis": {
-    "oneClick": false,
-    "perMachine": false,
-    "allowToChangeInstallationDirectory": true,
-    "deleteAppDataOnUninstall": false,
-    "createDesktopShortcut": true,
-    "createStartMenuShortcut": true,
-    "shortcutName": "Locus Smart Capture",
-    "installerIcon": "public/icons/win/icon.ico",
-    "uninstallerIcon": "public/icons/win/icon.ico"
+  nsis: {
+    oneClick: false,
+    perMachine: false,
+    allowToChangeInstallationDirectory: true,
+    deleteAppDataOnUninstall: false,
+    createDesktopShortcut: true,
+    createStartMenuShortcut: true,
+    shortcutName: "Locus Smart Capture",
+    installerIcon: "public/icons/win/icon.ico",
+    uninstallerIcon: "public/icons/win/icon.ico",
   },
-  "linux": {
-    "icon": "public/icons/png",
-    "target": [
-      "AppImage"
-    ],
-    "category": "Utility",
-    "artifactName": "${productName}-Linux-${version}.${ext}"
+  linux: {
+    icon: "public/icons/png",
+    target: ["AppImage"],
+    category: "Utility",
+    artifactName: "${productName}-Linux-${version}.${ext}",
   },
-  "publish": {
-    "provider": "github",
-    "owner": "lwshakib",
-    "repo": "locus-smart-capture",
-    "releaseType": "release"
-  }
+  publish: {
+    provider: "github",
+    owner: "lwshakib",
+    repo: "locus-smart-capture",
+    releaseType: "release",
+  },
 }
