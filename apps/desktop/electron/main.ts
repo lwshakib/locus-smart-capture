@@ -1,7 +1,8 @@
-import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, protocol, net, desktopCapturer, screen, shell, globalShortcut } from 'electron'
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, protocol, desktopCapturer, screen, shell, globalShortcut } from 'electron'
 
 
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
 import { execSync } from 'node:child_process'
@@ -477,8 +478,8 @@ app.whenReady().then(() => {
         regionWin = null
       }
 
-      // Small delay to ensure selector window is completely gone
-      await new Promise(resolve => setTimeout(resolve, 100))
+      // Delay until the transparent overlay is fully torn down before grabbing the screen
+      await new Promise(resolve => setTimeout(resolve, process.platform === 'win32' ? 200 : 120))
 
       const primaryDisplay = screen.getPrimaryDisplay()
       const sources = await desktopCapturer.getSources({
@@ -487,13 +488,33 @@ app.whenReady().then(() => {
       })
       
       const source = sources[0]
-      const image = source.thumbnail.crop(rect)
+      const image = source.thumbnail
+      const imageSize = image.getSize()
+
+      // Calculate the physical-to-logical coordinate scaling factors dynamically
+      const scaleX = imageSize.width / primaryDisplay.size.width
+      const scaleY = imageSize.height / primaryDisplay.size.height
+
+      const cropRect = {
+        x: Math.round(rect.x * scaleX),
+        y: Math.round(rect.y * scaleY),
+        width: Math.round(rect.width * scaleX),
+        height: Math.round(rect.height * scaleY)
+      }
+
+      // Clamp coordinates to stay completely within native screenshot bounds and prevent crashes
+      cropRect.x = Math.max(0, Math.min(cropRect.x, imageSize.width - 1))
+      cropRect.y = Math.max(0, Math.min(cropRect.y, imageSize.height - 1))
+      cropRect.width = Math.max(1, Math.min(cropRect.width, imageSize.width - cropRect.x))
+      cropRect.height = Math.max(1, Math.min(cropRect.height, imageSize.height - cropRect.y))
+
+      const croppedImage = image.crop(cropRect)
       
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
       const filename = `locus_${timestamp}.png`
       const filepath = path.join(CAP_FOLDER, filename)
       
-      fs.writeFileSync(filepath, image.toPNG())
+      fs.writeFileSync(filepath, croppedImage.toPNG())
       
       win?.webContents.send('hotkey-capture')
       

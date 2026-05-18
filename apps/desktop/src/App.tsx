@@ -1,18 +1,25 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { cn } from "@workspace/ui/lib/utils"
 import { Kbd } from "@workspace/ui/components/kbd"
-import { Button } from "@workspace/ui/components/button"
 import { 
-  LucideIcon,
-  Monitor,
-  Layout,
-  MonitorDot,
-  Crop,
-  Image as ImageIcon,
-  Trash2,
-  Loader2
+  Monitor as RawMonitor,
+  Layout as RawLayout,
+  MonitorDot as RawMonitorDot,
+  Crop as RawCrop,
+  Image as RawImageIcon,
+  Trash2 as RawTrash2,
+  Loader2 as RawLoader2
 } from 'lucide-react'
 import React from 'react'
+
+type LucideIcon = any
+const Monitor = RawMonitor as any
+const Layout = RawLayout as any
+const MonitorDot = RawMonitorDot as any
+const Crop = RawCrop as any
+const ImageIcon = RawImageIcon as any
+const Trash2 = RawTrash2 as any
+const Spinner = RawLoader2 as any
 
 
 
@@ -190,7 +197,7 @@ function WindowSelector({ onSelect }: { onSelect: (id: string) => void }) {
     <div className="w-64 p-2 flex flex-col gap-2">
       {loading && (
         <div className="flex items-center justify-center py-2">
-          <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+          <Spinner className="w-4 h-4 animate-spin text-indigo-500" />
         </div>
       )}
       <div className="max-h-[300px] overflow-y-auto no-scrollbar flex flex-col gap-1">
@@ -238,7 +245,7 @@ function MonitorSelector({ onSelect }: { onSelect: (index: number) => void }) {
     <div className="w-48 p-2 flex flex-col gap-1">
       {loading && (
         <div className="flex items-center justify-center py-2">
-          <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+          <Spinner className="w-4 h-4 animate-spin text-indigo-500" />
         </div>
       )}
       {monitors.map(monitor => (
@@ -275,11 +282,54 @@ type WindowBound = {
 }
 
 function RegionSelectorOverlay({ mode }: { mode: 'manual' | 'auto' }) {
-  const [startPos, setStartPos] = useState<{ x: number, y: number } | null>(null)
-  const [currentPos, setCurrentPos] = useState<{ x: number, y: number } | null>(null)
+  const startRef = useRef<{ x: number; y: number } | null>(null)
+  const currentRef = useRef<{ x: number; y: number } | null>(null)
+  const dragRafRef = useRef<number | null>(null)
+  const mouseRafRef = useRef<number | null>(null)
+  const mousePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
+  const hoveredWindowRef = useRef<WindowBound | null>(null)
+
+  const [dragRect, setDragRect] = useState<{
+    left: number
+    top: number
+    width: number
+    height: number
+  } | null>(null)
+  const [pointerActive, setPointerActive] = useState(false)
   const [windowBounds, setWindowBounds] = useState<WindowBound[]>([])
   const [hoveredWindow, setHoveredWindow] = useState<WindowBound | null>(null)
-  const [mousePos, setMousePos] = useState<{ x: number, y: number }>({ x: 0, y: 0 })
+  const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  hoveredWindowRef.current = hoveredWindow
+
+  const flushDragRect = useCallback(() => {
+    dragRafRef.current = null
+    const start = startRef.current
+    const current = currentRef.current
+    if (!start || !current) return
+    setDragRect({
+      left: Math.min(start.x, current.x),
+      top: Math.min(start.y, current.y),
+      width: Math.abs(current.x - start.x),
+      height: Math.abs(current.y - start.y),
+    })
+  }, [])
+
+  const scheduleDragRect = useCallback(() => {
+    if (dragRafRef.current != null) return
+    dragRafRef.current = requestAnimationFrame(flushDragRect)
+  }, [flushDragRect])
+
+  const flushMousePos = useCallback(() => {
+    mouseRafRef.current = null
+    const p = mousePosRef.current
+    setMousePos({ x: p.x, y: p.y })
+  }, [])
+
+  const scheduleMousePos = useCallback((x: number, y: number) => {
+    mousePosRef.current = { x, y }
+    if (mouseRafRef.current != null) return
+    mouseRafRef.current = requestAnimationFrame(flushMousePos)
+  }, [flushMousePos])
 
   useEffect(() => {
     const fetchBounds = async () => {
@@ -302,21 +352,28 @@ function RegionSelectorOverlay({ mode }: { mode: 'manual' | 'auto' }) {
   }, [])
 
   useEffect(() => {
-    // Clear body background for transparency
-    document.body.style.backgroundColor = 'transparent'
+    return () => {
+      if (dragRafRef.current != null) cancelAnimationFrame(dragRafRef.current)
+      if (mouseRafRef.current != null) cancelAnimationFrame(mouseRafRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    // Enforce 1/255 alpha background to capture all mouse events and prevent click-through
+    document.body.style.backgroundColor = 'rgba(0, 0, 0, 0.004)'
     return () => {
       document.body.style.backgroundColor = ''
     }
   }, [])
-  
+
   useEffect(() => {
-    if (mode === 'auto' && !startPos && windowBounds.length > 0) {
+    if (mode === 'auto' && !pointerActive && windowBounds.length > 0) {
       // Find windows containing mouse pos, then pick the smallest one (most specific)
-      const matches = windowBounds.filter(b => 
+      const matches = windowBounds.filter(b =>
         mousePos.x >= b.x && mousePos.x <= b.x + b.width &&
         mousePos.y >= b.y && mousePos.y <= b.y + b.height
       )
-      
+
       if (matches.length > 0) {
         const smallest = matches.sort((a, b) => (a.width * a.height) - (b.width * b.height))[0]
         setHoveredWindow(smallest)
@@ -326,69 +383,116 @@ function RegionSelectorOverlay({ mode }: { mode: 'manual' | 'auto' }) {
     } else {
       setHoveredWindow(null)
     }
-  }, [mousePos, windowBounds, startPos])
+  }, [mousePos, windowBounds, mode, pointerActive])
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setStartPos({ x: e.clientX, y: e.clientY })
-    setCurrentPos({ x: e.clientX, y: e.clientY })
-  }
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    setMousePos({ x: e.clientX, y: e.clientY })
-    if (startPos) {
-      setCurrentPos({ x: e.clientX, y: e.clientY })
+  const endPointerDrag = useCallback(() => {
+    const start = startRef.current
+    const current = currentRef.current
+    startRef.current = null
+    currentRef.current = null
+    setPointerActive(false)
+    setDragRect(null)
+    if (dragRafRef.current != null) {
+      cancelAnimationFrame(dragRafRef.current)
+      dragRafRef.current = null
     }
-  }
 
-  const handleMouseUp = () => {
-    if (startPos && currentPos) {
-      const x = Math.round(Math.min(startPos.x, currentPos.x))
-      const y = Math.round(Math.min(startPos.y, currentPos.y))
-      const width = Math.round(Math.abs(currentPos.x - startPos.x))
-      const height = Math.round(Math.abs(currentPos.y - startPos.y))
+    if (start && current) {
+      const x = Math.round(Math.min(start.x, current.x))
+      const y = Math.round(Math.min(start.y, current.y))
+      const width = Math.round(Math.abs(current.x - start.x))
+      const height = Math.round(Math.abs(current.y - start.y))
+      const hw = hoveredWindowRef.current
 
-      if (mode === 'auto' && width < 5 && height < 5 && hoveredWindow) {
-         window.ipcRenderer.invoke('capture-region', { 
-           x: hoveredWindow.x, 
-           y: hoveredWindow.y, 
-           width: hoveredWindow.width, 
-           height: hoveredWindow.height 
-         })
+      if (mode === 'auto' && width < 5 && height < 5 && hw) {
+        void window.ipcRenderer.invoke('capture-region', {
+          x: hw.x,
+          y: hw.y,
+          width: hw.width,
+          height: hw.height
+        })
       } else if (mode === 'manual' && width > 5 && height > 5) {
-         window.ipcRenderer.invoke('capture-region', { x, y, width, height })
+        void window.ipcRenderer.invoke('capture-region', { x, y, width, height })
       } else {
-         window.ipcRenderer.invoke('cancel-region-selector')
+        void window.ipcRenderer.invoke('cancel-region-selector')
       }
     }
-    setStartPos(null)
-    setCurrentPos(null)
+  }, [mode])
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {
+      /* ignore */
+    }
+    startRef.current = { x: e.clientX, y: e.clientY }
+    currentRef.current = { x: e.clientX, y: e.clientY }
+    setPointerActive(true)
+    flushDragRect()
   }
 
-  const rect = startPos && currentPos ? {
-    left: Math.min(startPos.x, currentPos.x),
-    top: Math.min(startPos.y, currentPos.y),
-    width: Math.abs(currentPos.x - startPos.x),
-    height: Math.abs(currentPos.y - startPos.y)
-  } : null
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (mode === 'auto') {
+      scheduleMousePos(e.clientX, e.clientY)
+    }
+    if (startRef.current) {
+      currentRef.current = { x: e.clientX, y: e.clientY }
+      scheduleDragRect()
+    }
+  }
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    } catch {
+      /* ignore */
+    }
+    endPointerDrag()
+  }
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    } catch {
+      /* ignore */
+    }
+    endPointerDrag()
+  }
 
   return (
-    <div 
-      className="fixed inset-0 z-[9999] bg-black/10 cursor-crosshair select-none"
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
+    <div
+      className="fixed inset-0 z-[9999] cursor-crosshair select-none touch-none bg-black/[0.001]"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
     >
-      {mode === 'manual' && rect ? (
-        <div 
-          className="absolute border-2 border-indigo-500 bg-indigo-500/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.3)]"
+      {mode === 'manual' && !dragRect && (
+        <div className="pointer-events-none absolute inset-0 bg-black/35" />
+      )}
+
+      {mode === 'manual' && dragRect && (
+        <div
+          className="pointer-events-none absolute box-border border-2 border-indigo-500"
           style={{
-            left: rect.left,
-            top: rect.top,
-            width: rect.width,
-            height: rect.height
+            left: dragRect.left,
+            top: dragRect.top,
+            width: dragRect.width,
+            height: dragRect.height,
+            boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.35)',
           }}
         />
-      ) : mode === 'auto' && hoveredWindow && (
+      )}
+
+      {mode === 'auto' && (
+        <div className="pointer-events-none absolute inset-0 bg-black/10" />
+      )}
+
+      {mode === 'auto' && hoveredWindow && (
         <div 
           className="absolute border-2 border-indigo-500 border-dashed bg-indigo-500/10 pointer-events-none"
           style={{
@@ -448,20 +552,10 @@ function RegionSelectorOverlay({ mode }: { mode: 'manual' | 'auto' }) {
 
 
 function App() {
-  const hash = window.location.hash
-  const isRegionManual = hash === '#region-manual'
-  const isRegionAuto = hash === '#region-auto'
-
-  if (isRegionManual) return <RegionSelectorOverlay mode="manual" />
-  if (isRegionAuto) return <RegionSelectorOverlay mode="auto" />
-
   const [refreshKey, setRefreshKey] = useState(0)
-
   const [isCapturing, setIsCapturing] = useState(false)
   const [isWindowSelectorOpen, setIsWindowSelectorOpen] = useState(false)
   const [isMonitorSelectorOpen, setIsMonitorSelectorOpen] = useState(false)
-
-
 
   useEffect(() => {
     // Sync with system theme
@@ -487,6 +581,13 @@ function App() {
       if (typeof cleanup === 'function') cleanup()
     }
   }, [])
+
+  const hash = window.location.hash
+  const isRegionManual = hash === '#region-manual'
+  const isRegionAuto = hash === '#region-auto'
+
+  if (isRegionManual) return <RegionSelectorOverlay mode="manual" />
+  if (isRegionAuto) return <RegionSelectorOverlay mode="auto" />
 
 
 

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /// <reference types="vite-plugin-electron/electron-env" />
 
 declare namespace NodeJS {
