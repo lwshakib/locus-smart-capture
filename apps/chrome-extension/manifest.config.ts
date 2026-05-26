@@ -29,7 +29,8 @@ export default defineManifest({
   content_scripts: [
     {
       js: ["src/content/main.tsx"],
-      matches: ["http://*/*", "https://*/*"],
+      matches: ["https://*/*"],
+      run_at: "document_end",
     },
   ],
   side_panel: {
