@@ -455,9 +455,11 @@ app.whenReady().then(() => {
 
   ipcMain.handle("open-capture", async (_, filename: string) => {
     try {
-      const filepath = path.join(CAP_FOLDER, filename)
-      await shell.openPath(filepath)
-      return { success: true }
+      const resolvedPath = path.resolve(CAP_FOLDER, filename)
+      if (!resolvedPath.startsWith(path.resolve(CAP_FOLDER))) {
+        throw new Error("Invalid file path")
+      }
+      await shell.openPath(resolvedPath)
     } catch (err) {
       return { success: false, error: (err as any).message }
     }
